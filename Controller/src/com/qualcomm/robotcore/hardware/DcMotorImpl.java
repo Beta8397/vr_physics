@@ -35,6 +35,8 @@ public class DcMotorImpl implements DcMotor {
     private double systematicErrorFrac = 0.0;
     private double inertia;
 
+    private ZeroPowerBehavior zeroPowerBehavior = ZeroPowerBehavior.BRAKE;
+
 
 
     /**
@@ -213,5 +215,9 @@ public class DcMotorImpl implements DcMotor {
         boolean almostStopped = Math.abs(speed) / (COEFF_PROPORTIONATE * MOTOR_TYPE.TICKS_PER_ROTATION) < MAX_ROT_OFFSET;
         return mode == RunMode.RUN_TO_POSITION && Math.abs(power) > 0.0001 && (!atTarget || !almostStopped);
     }
+
+    public synchronized void setZeroPowerBehavior(ZeroPowerBehavior beh) { zeroPowerBehavior = beh; }
+
+    public synchronized ZeroPowerBehavior getZeroPowerBehavior() { return zeroPowerBehavior; }
 
 }
