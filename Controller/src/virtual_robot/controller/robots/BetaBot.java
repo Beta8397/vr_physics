@@ -238,7 +238,9 @@ public class BetaBot extends VirtualBot {
 
         for (int i=0; i<4; i++){
             float f = wheel_X_Forces.get(i);
-            if (Math.abs(f) > MAX_WHEEL_X_FORCE) wheel_X_Forces.put(i, MAX_WHEEL_X_FORCE * Math.signum(f));
+            if (Math.abs(f) > MAX_WHEEL_X_FORCE) {
+                wheel_X_Forces.put(i, MAX_WHEEL_X_FORCE * Math.signum(f));
+            }
         }
 
         //Based on the adjusted forces at each wheel, determine net force and net torque on the bot,
