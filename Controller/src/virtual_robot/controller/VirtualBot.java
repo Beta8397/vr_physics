@@ -12,6 +12,8 @@ import org.ode4j.math.DVector3C;
 import org.ode4j.ode.*;
 import virtual_robot.config.Config;
 
+import java.util.*;
+
 /**
  *   For internal use only. Abstract base class for all of the specific robot configurations.
  *
@@ -50,6 +52,17 @@ public abstract class VirtualBot {
     protected double botWidth;
 
     protected DSpace botSpace;
+
+    public class FeedBack {
+        public DJoint.DJointFeedback fb;
+        public int index;
+        public FeedBack(DJoint.DJointFeedback fb, int index){
+            this.fb = fb;
+            this.index = index;
+        }
+    }
+
+    protected List<FeedBack> feedBackList = new ArrayList<>();
 
     public VirtualBot(){
         subSceneGroup = controller.getSubSceneGroup();
