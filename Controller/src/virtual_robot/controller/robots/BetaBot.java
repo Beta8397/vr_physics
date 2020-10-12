@@ -173,7 +173,10 @@ public class BetaBot extends VirtualBot {
 
     public synchronized void updateState(double millis){
 
-        //Based on KINEMATIC model, determine expected changes in X,Y,THETA during next interval
+        /* Based on KINEMATIC model, determine TENTATIVE changes in X,Y,THETA during next interval
+         * Note that these values are based on the AVERAGE SPEED OF EACH WHEEL during the last interval. This is
+         * because DcMotorImpl updates POSITION based on the average of initial speed and final speed.
+         */
 
         double[] deltaTicks = new double[4];
         double[] w = new double[4];
@@ -196,30 +199,49 @@ public class BetaBot extends VirtualBot {
             }
         }
 
+        /*
+         * Tentative position change in the ROBOT COORDINATE SYSTEM
+         */
         double dxR = robotDeltaPos[0];
         double dyR = robotDeltaPos[1];
         double dHeading = robotDeltaPos[2];
-        DMatrix3C currentRot = fxBody.getRotation();
-        double heading = Math.atan2(currentRot.get10(), currentRot.get00());
-        double avgHeading = heading + dHeading / 2.0;
+
+        /*
+         * Convert to tentative position change in the WOORLD COORDINATE SYSTEM
+         */
+        DMatrix3C currentRot = fxBody.getRotation();    //Matrix representing the current orientation in WORLD SYSTEM
+        double heading = Math.atan2(currentRot.get10(), currentRot.get00());    //Current heading in WORLD SYSTEM
+        double avgHeading = heading + dHeading / 2.0;                    //Tentative average heading during current step
         double sinAvg = Math.sin(avgHeading);
         double cosAvg = Math.cos(avgHeading);
-        double dX = dxR * cosAvg - dyR * sinAvg;
-        double dY = dxR * sinAvg + dyR * cosAvg;
+        double dX = dxR * cosAvg - dyR * sinAvg;        //Tentative change in X-position in WORLD SYSTEM
+        double dY = dxR * sinAvg + dyR * cosAvg;        //Tentative change in Y-position in WORLD SYSTEM
 
-        //Determine the force and torque (WORLD COORDS) that would be required to achieve the changes predicted by
-        //the kinematic model.
+        /* Determine the force and torque (WORLD COORDS) that would be required to achieve the changes predicted by
+         * the kinematic model.
+         *
+         * Note: dX, dY, and dHeading are based on average speeds during the interval, so we can calculate force
+         * and torque using:
+         *
+         *       d(Position) = v0*t + 0.5*(F/m)*t*t
+         *       d(Heading) = omega0*t + 0.5*(Torque/I)*t*t
+         *
+         *       or,
+         *
+         *       F = 2m( d(Position) - v0*t ) / (t*t)
+         *       Torque = 2I( d(Heading) - omega0*t ) / (t*t)
+         */
 
-        double t = millis / 1000.0;
+        double t = millis / 1000.0;     //Time increment in seconds
         double tSqr = t * t;
-        DVector3 deltaPos = new DVector3(dX, dY, 0);
-        DVector3C vel = fxBody.getLinearVel().clone();
-        ((DVector3)vel).set2(0);
-        DVector3 force = deltaPos.reSub(vel.reScale(t)).reScale(2.0 * TOTAL_MASS / tSqr);
-        double angVel = fxBody.getAngularVel().get2();
-        float torque = (float)(2.0 * TOTAL_Z_INERTIA * (dHeading - angVel*t)/tSqr);
+        DVector3 deltaPos = new DVector3(dX, dY, 0);    //Vector representing the tentative change in position
+        DVector3C vel = fxBody.getLinearVel().clone();      //Robot velocity at the beginning of this step
+        ((DVector3)vel).set2(0);                            //Remove any z-component of the beginning velocity
+        DVector3 force = deltaPos.reSub(vel.reScale(t)).reScale(2.0 * TOTAL_MASS / tSqr);   //Calculate net force required to achieve the tentative final position
+        double angVel = fxBody.getAngularVel().get2();                                      //Angular speed at the beginning of this step
+        float torque = (float)(2.0 * TOTAL_Z_INERTIA * (dHeading - angVel*t)/tSqr);         //Calculate net torque required to achieve the tentative final heading
 
-        //Convert the force to the ROBOT COORDINATE system
+        //Convert the tentative total force to the ROBOT COORDINATE system
 
         double sinHd = Math.sin(heading);
         double cosHd = Math.cos(heading);
@@ -227,34 +249,81 @@ public class BetaBot extends VirtualBot {
         float fXR = (float)(force.get0()*cosHd + force.get1()*sinHd);
         float fYR = (float)(-force.get0()*sinHd + force.get1()*cosHd);
 
-        //Determine the forces that would be required on each of the bot's four wheels to achieve
-        //the total force and torque predicted by the kinematic model
+        VectorF totalBotForces = new VectorF(fXR, fYR, torque, 0);      //Tentative total force & torque on bot in robot coords
 
-        VectorF botForces = new VectorF(fXR, fYR, torque, 0);
-        VectorF wheel_X_Forces = M_ForceRobotToWheel.multiplied(botForces);
+        /*
+         * Vector to hold the external forces on the robot due to collisions (see below)
+         */
+        VectorF collisionForces = new VectorF(0,0,0,0);
+
+        /*
+          ==========================================  OPTIONAL  ===================================================
+          Determine cumulative force & torque on bot, in robot coords, from collisions during preceding world update,
+          using the feedbackList. NOTE:  this step is optional; the simulation works quite well without it. This is a more
+          physical approach, but it may introduce some problems if the external forces obtained from the physics engine
+          are not accurate (As the ODE documentation suggests can occur). If that happens, just remove this step.
+          ==========================================================================================================
+
+        for (FeedBack f: feedBackList){
+            float fXCR, fYCR;
+            if (f.index == 0) {     //Robot is body #1 for this collision
+                fXCR = (float)((float)f.fb.f1.get0()*cosHd + (float)f.fb.f1.get1()*sinHd);
+                fYCR = (float)(-(float)f.fb.f1.get0()*sinHd + (float)f.fb.f1.get1()*cosHd);
+                collisionForces.add(new VectorF(fXCR, fYCR, (float)f.fb.t1.get2(), 0));
+            } else {                //Robot is body #2 for this collision
+                fXCR = (float)((float)f.fb.f2.get0()*cosHd + (float)f.fb.f2.get1()*sinHd);
+                fYCR = (float)(-(float)f.fb.f2.get0()*sinHd + (float)f.fb.f2.get1()*cosHd);
+                collisionForces.add(new VectorF(fXCR, fYCR, (float)f.fb.t2.get2(), 0));
+            }
+        }
+
+        */
+
+
+        /*
+         * We need to clear the feedBack list at this point, whether we are making use of the collision forces or not.
+         */
+        feedBackList.clear();
+
+        //Frictional force (from floor) on bot, in world coords is tentatively equal to total force minus collision force
+
+        VectorF frictionForces = totalBotForces.subtracted(collisionForces);
+
+        //Determine the forces that would be required on each of the bot's four wheels to achieve
+        //the total frictional force and torque predicted by the kinematic model
+
+        VectorF wheel_X_Forces = M_ForceRobotToWheel.multiplied(frictionForces);
 
         //If any of the wheel forces exceeds the product of muStatic*mass*gravity, reduce the magnitude
         //of that force to muKinetic*mass*gravity, keeping the direction the same
 
         for (int i=0; i<4; i++){
             float f = wheel_X_Forces.get(i);
-            if (Math.abs(f) > MAX_WHEEL_X_FORCE) wheel_X_Forces.put(i, MAX_WHEEL_X_FORCE * Math.signum(f));
+            if (Math.abs(f) > MAX_WHEEL_X_FORCE) {
+                wheel_X_Forces.put(i, MAX_WHEEL_X_FORCE * Math.signum(f));
+            }
         }
 
-        //Based on the adjusted forces at each wheel, determine net force and net torque on the bot,
+        //Based on the adjusted forces at each wheel, determine net frictional force and torque on the bot,
         //Force is in ROBOT COORDINATE system
 
-        botForces = M_ForceWheelToRobot.multiplied(wheel_X_Forces);
+        frictionForces = M_ForceWheelToRobot.multiplied(wheel_X_Forces);
 
-        //Convert these adjusted forces to WORLD COORDINATES and put into the original force DVector3
-        force.set0(botForces.get(0)*cosHd - botForces.get(1)*sinHd);
-        force.set1(botForces.get(0)*sinHd + botForces.get(1)*cosHd);
+        //Convert these adjusted friction forces to WORLD COORDINATES and put into the original force DVector3
+        force.set0(frictionForces.get(0)*cosHd - frictionForces.get(1)*sinHd);
+        force.set1(frictionForces.get(0)*sinHd + frictionForces.get(1)*cosHd);
         force.set2(0);
 
-        //Apply the adjusted force and torque to the bot
+        /*
+         * Apply the adjusted frictional force and torque to the bot.
+         *
+         * Note:  We are only applying the frictional forces from the floor, NOT the collision forces. The
+         *        collision forces will be applied automatically during the next update of the world by the
+         *        ODE physics engine.
+         */
 
         fxBody.addForce(force);
-        fxBody.addTorque(new DVector3(0, 0, botForces.get(2)));
+        fxBody.addTorque(new DVector3(0, 0, frictionForces.get(2)));
 
         /**
          * Update state of robot accessories
@@ -307,304 +376,8 @@ public class BetaBot extends VirtualBot {
         rightIntakeSpeed = 1000.0 * rightIntakeMotor.update(millis) * 50.0/(1120.0 * millis);
         leftIntakeSpeed = 1000.0* leftIntakeMotor.update(millis) * 50.0 / (1120.0 *  millis);
 
-//        System.out.println("Right intake speed: " + rightIntakeSpeed);
-//        System.out.println("Left intake speed: " + leftIntakeSpeed);
     }
 
-    /**
-     * Set up Robot FxBody using individual DBody objects for chassis, vertical lift stages, slider, and hand,
-     * with the components attached using joints and operated using motors.
-     *
-     * This has the disadvantage of inaccuracies at the joints, and occasional instability leading to robot
-     * self-destruction.
-     */
-
-    //    protected void setUpFxBody2(){
-//
-//        //Create new FxBody object to represent the chassis. This will contain the DBody (for physics sim),
-//        //a Group object for display, and multiple DGeom objects (for collision handling). It will
-//        //also have children--these will be other FxBody objects that represent robot components other than
-//        //the chassis.
-//        DWorld world = controller.getWorld();
-//        fxBody = FxBody.newInstance(world, botSpace);
-//        DBody chassisBody = fxBody.getBody();
-//        DMass chassisMass = OdeHelper.createMass();
-//        chassisMass.setMass(TOTAL_MASS);
-//        chassisMass.setI(new DMatrix3(TOTAL_Z_INERTIA, 0, 0, 0, TOTAL_Z_INERTIA, 0, 0, 0, TOTAL_Z_INERTIA));
-//        chassisBody.setMass(chassisMass);
-//
-//
-//        float tetrixWidth = 1.25f * 2.54f;
-//        float sliderLength = 16f * 2.54f;
-//
-//        float pltThk = 0.125f * 2.54f;
-//        float halfPltHt = 2 * 2.54f;
-//        float halfPltLen1 = 8.5f * 2.54f;
-//        float halfPltLen2 = 7.5f * 2.54f;
-//        float pltXOffset1 = 5.5f * 2.54f;
-//        float pltXOffset2 = 8.5f * 2.54f;
-//        float pltZOffset = 0.25f * 2.54f;
-//        double sideBoxLength = 2.0 * halfPltLen1;
-//        double sideBoxWidth = pltXOffset2 - pltXOffset1 + pltThk;
-//        double sideBoxHeight = 2.0 * halfPltHt;
-//        double sideboxXOffset = 0.5 * (pltXOffset1 + pltXOffset2);
-//
-//        float shortRailLength = 3.125f * 2.54f;
-//        float longRailLength = 17.125f * 2.54f;
-//        float shortRailXOffset = 7 * 2.54f;
-//        float railYOffset = 7.875f * 2.54f;
-//        float wheelDiam = 4 * 2.54f;
-//        float wheelWidth = 2 * 2.54f;
-//        float wheelXOffset = 7 * 2.54f;
-//        float wheelYOffset = 6.5f * 2.54f;
-//
-//        float liftThk = 0.6f*2.54f;
-//        float liftHt = 13f * 2.54f;
-//        float liftXOffset = 5.8625f * 2.54f;
-//        float liftBaseYOffset = 2.0f * 2.54f;
-//        float liftZOffset = 4.75f * 2.54f;
-//
-//        float crossBarZOffset = liftHt/2 - liftThk/2;
-//        float crossBarLength = 2 * liftXOffset - liftThk;
-//
-//        PhongMaterial liftMaterial0 = new PhongMaterial(Color.color(0.6, 0.6, 0.6));
-//        PhongMaterial liftMaterial1 = new PhongMaterial(Color.color(0.8, 0.8, 0.8));
-//
-//        //Create Group for display of chassis
-//
-//        Group chassis = new Group();
-//
-//        Group[] plates = new Group[4];
-//        PhongMaterial plateMaterial = new PhongMaterial(Color.color(0.6, 0.3, 0));
-//        for (int i=0; i<4; i++){
-//            plates[i] = Util3D.polygonBox(pltThk, new float[]{halfPltHt ,-halfPltLen1, halfPltHt, halfPltLen1, halfPltHt/2,
-//                            halfPltLen1, -halfPltHt, halfPltLen2, -halfPltHt, -halfPltLen2, halfPltHt/2, -halfPltLen1},
-//                    plateMaterial);
-//            float x = (i<2? -1.0f : 1.0f) * (i%2 == 0? pltXOffset2:pltXOffset1);
-//            plates[i].getTransforms().addAll(new Translate(x, 0, pltZOffset), new Rotate(-90, Rotate.Y_AXIS));
-//        }
-//
-//        Group frontLeftRail = Parts.tetrixBox(shortRailLength, tetrixWidth, tetrixWidth, tetrixWidth);
-//        frontLeftRail.getTransforms().addAll(new Translate(-shortRailXOffset, railYOffset, halfPltHt+pltZOffset+0.5*tetrixWidth));
-//        Group frontRightRail = Parts.tetrixBox(shortRailLength, tetrixWidth, tetrixWidth, tetrixWidth);
-//        frontRightRail.getTransforms().addAll(new Translate(shortRailXOffset, railYOffset, halfPltHt+pltZOffset+0.5*tetrixWidth));
-//        Group frontRail = Parts.tetrixBox(longRailLength, tetrixWidth, tetrixWidth, tetrixWidth);
-//        frontRail.getTransforms().addAll(new Translate(0, railYOffset, halfPltHt+pltZOffset+1.5*tetrixWidth));
-//        Group backLeftRail = Parts.tetrixBox(shortRailLength, tetrixWidth, tetrixWidth, tetrixWidth);
-//        backLeftRail.getTransforms().addAll(new Translate(-shortRailXOffset, -railYOffset, halfPltHt+pltZOffset+0.5*tetrixWidth));
-//        Group backRightRail = Parts.tetrixBox(shortRailLength, tetrixWidth, tetrixWidth, tetrixWidth);
-//        backRightRail.getTransforms().addAll(new Translate(shortRailXOffset, -railYOffset, halfPltHt+pltZOffset+0.5*tetrixWidth));
-//        Group backRail = Parts.tetrixBox(longRailLength, tetrixWidth, tetrixWidth, tetrixWidth);
-//        backRail.getTransforms().addAll(new Translate(0, -railYOffset, halfPltHt+pltZOffset+1.5*tetrixWidth));
-//
-//        chassis.getChildren().addAll(plates);
-//        chassis.getChildren().addAll(frontLeftRail, frontRightRail, frontRail, backLeftRail, backRightRail, backRail);
-//
-//        Group[] wheels = new Group[4];
-//        for (int i=0; i<4; i++){
-//            wheels[i] = Parts.mecanumWheel(wheelDiam, wheelWidth, i);
-//            wheels[i].setRotationAxis(new Point3D(0, 0, 1));
-//            wheels[i].setRotate(90);
-//            wheels[i].setTranslateX(i<2? -wheelXOffset : wheelXOffset);
-//            wheels[i].setTranslateY(i==0 || i==3? -wheelYOffset : wheelYOffset);
-//            wheels[i].getTransforms().add(wheelRotates[i]);
-//        }
-//
-//
-//        chassis.getChildren().addAll(wheels);
-//
-//        PhongMaterial slideMaterial = Util3D.imageMaterial("/virtual_robot/assets/rev_slide.jpg");
-//
-//        Box leftLiftBase = new Box(liftThk, liftThk, liftHt);
-//        leftLiftBase.setMaterial(liftMaterial0);
-//        leftLiftBase.getTransforms().addAll(new Translate(-liftXOffset, liftBaseYOffset, liftZOffset));
-//        Box rightLiftBase = new Box(liftThk, liftThk, liftHt);
-//        rightLiftBase.setMaterial(liftMaterial0);
-//        rightLiftBase.getTransforms().addAll(new Translate(liftXOffset, liftBaseYOffset, liftZOffset));
-//        chassis.getChildren().addAll(leftLiftBase, rightLiftBase);
-//
-//        //For display purposes, set the Node object of fxBody to the display group
-//
-//        fxBody.setNode(chassis, false);
-//
-//        //Generate DGeom objects (they happen to all be boxes) for chassis collision handling
-//
-//        DBox rightSideBox = OdeHelper.createBox(sideBoxWidth, sideBoxLength, sideBoxHeight);
-//        DBox leftSideBox = OdeHelper.createBox(sideBoxWidth, sideBoxLength, sideBoxHeight);
-//        DBox leftFrontRailBox = OdeHelper.createBox(0.9*shortRailLength, tetrixWidth, 0.9*tetrixWidth);
-//        DBox rightFrontRailBox = OdeHelper.createBox(0.9*shortRailLength, tetrixWidth, 0.9*tetrixWidth);
-//        DBox frontRailBox = OdeHelper.createBox(0.9*longRailLength, tetrixWidth, 0.9*tetrixWidth);
-//        DBox leftBackRailBox = OdeHelper.createBox(0.9*shortRailLength, tetrixWidth, 0.9*tetrixWidth);
-//        DBox rightBackRailBox = OdeHelper.createBox(0.9*shortRailLength, tetrixWidth, 0.9*tetrixWidth);
-//        DBox backRailBox = OdeHelper.createBox(0.9*longRailLength, tetrixWidth, 0.9*tetrixWidth);
-//        DBox leftLiftBaseBox = OdeHelper.createBox(liftThk, liftThk, liftHt);
-//        DBox rightLiftBaseBox = OdeHelper.createBox(liftThk, liftThk, liftHt);
-//
-//        DTriMeshData botBottomData = FxBodyHelper.getParametricTriMeshData(1, -1, -1, 1, 5, 5,
-//                false, false, new Util3D.Param3DEqn() {
-//                    @Override
-//                    public float x(float s, float t) {
-//                        return s * halfPltLen1;
-//                    }
-//
-//                    @Override
-//                    public float y(float s, float t) {
-//                        return t * halfPltLen1;
-//                    }
-//
-//                    @Override
-//                    public float z(float s, float t) {
-//                        return 0;
-//                    }
-//                });
-//
-//        DTriMesh botBottomMesh = OdeHelper.createTriMesh(botSpace, botBottomData, null, null, null);
-//        botBottomMesh.setData("Bot Bottom Mesh");
-//
-//        //Add the chassis DGeom objects to fxBody, with appropriate offsets
-//
-//        fxBody.addGeom(rightSideBox, sideboxXOffset, 0, pltZOffset);
-//        fxBody.addGeom(leftSideBox, -sideboxXOffset, 0, pltZOffset);
-//        fxBody.addGeom(leftFrontRailBox, -shortRailXOffset, railYOffset, pltZOffset+halfPltHt+tetrixWidth/2.0);
-//        fxBody.addGeom(rightFrontRailBox, shortRailXOffset, railYOffset, pltZOffset+halfPltHt+tetrixWidth/2.0);
-//        fxBody.addGeom(frontRailBox, 0, railYOffset, pltZOffset+halfPltHt+1.5*tetrixWidth);
-//        fxBody.addGeom(leftBackRailBox, -shortRailXOffset, -railYOffset, pltZOffset+halfPltHt+tetrixWidth/2.0);
-//        fxBody.addGeom(rightBackRailBox, shortRailXOffset, -railYOffset, pltZOffset+halfPltHt+tetrixWidth/2.0);
-//        fxBody.addGeom(backRailBox, 0, -railYOffset, pltZOffset+halfPltHt+1.5*tetrixWidth);
-//        fxBody.addGeom(leftLiftBaseBox, -liftXOffset, liftBaseYOffset, liftZOffset);
-//        fxBody.addGeom(rightLiftBaseBox, liftXOffset, liftBaseYOffset, liftZOffset);
-//        fxBody.addGeom(botBottomMesh, 0, 0, -halfPltHt);
-//
-//        //Generate an array of 3 Group objects for display of the 3 lift stages (other than the base stage)
-//
-//        liftMass = OdeHelper.createMass();
-//        liftMass.setBox(1, liftHt, liftHt, liftHt);
-//        liftMass.setMass(250);
-//
-//        Group[] liftStages = new Group[3];
-//        for (int i=0; i<3; i++){
-//            liftStages[i] = new Group();
-//            Box left = new Box(liftThk, liftThk, liftHt);
-//            left.getTransforms().addAll(new Translate(-liftXOffset, 0,0));
-//            Box right = new Box(liftThk, liftThk, liftHt);
-//            right.getTransforms().addAll(new Translate(liftXOffset, 0, 0));
-//            left.setMaterial(i%2 == 0? liftMaterial1 : liftMaterial0);
-//            right.setMaterial(i%2 == 0? liftMaterial1 : liftMaterial0);
-//            liftStages[i].getChildren().addAll(left, right);
-//            liftFxBodies[i] = FxBody.newInstance(world, botSpace);
-//            liftFxBodies[i].setMass(liftMass);
-//            liftFxBodies[i].setNode(liftStages[i], true);
-//        }
-//
-//
-//        Box crossBar = new Box(crossBarLength, liftThk, liftThk);
-//        crossBar.setMaterial(liftMaterial0);
-//        crossBar.getTransforms().addAll(new Translate(0, 0, crossBarZOffset));
-//        Box box = new Box(7, 3, 3);
-//        box.setMaterial(new PhongMaterial(Color.color(0.3, 0.3, 0.3)));
-//        box.getTransforms().add(new Translate(0, 0, crossBarZOffset-liftThk));
-//        liftStages[2].getChildren().addAll(crossBar, box);
-//        DBox crossBarGeom = OdeHelper.createBox(crossBarLength, liftThk, liftThk);
-//        liftFxBodies[2].addGeom(crossBarGeom, 0, 0, crossBarZOffset);
-//
-//        for (int i=0; i<3; i++){
-//            liftFxBodies[i].setPosition(0, liftBaseYOffset + (i+1)*liftThk, liftZOffset);
-//            fxBody.getChildren().add(liftFxBodies[i]);
-//            verticalLiftJoints[i] = OdeHelper.createSliderJoint(world);
-//            verticalLiftJoints[i].attach(i==0? fxBody.getBody() : liftFxBodies[i-1].getBody(), liftFxBodies[i].getBody());
-//            verticalLiftJoints[i].setAxis(0, 0, -1);
-//            verticalLiftJoints[i].setParamFMax(1000);
-//            verticalLiftJoints[i].setParamLoStop(0);
-//            verticalLiftJoints[i].setParamHiStop(0.9 * liftHt);
-//            verticalMotorJoints[i] = OdeHelper.createLMotorJoint(world);
-//            verticalMotorJoints[i].attach(i==0? fxBody.getBody() : liftFxBodies[i-1].getBody(), liftFxBodies[i].getBody());
-//            verticalMotorJoints[i].setNumAxes(3);
-//            verticalMotorJoints[i].setAxis(0, 1, 0,0,-1);
-//            verticalMotorJoints[i].setAxis(1, 1, 0, 1, 0);
-//            verticalMotorJoints[i].setAxis(2, 1, 1,0,0);
-//            verticalMotorJoints[i].setParamFMax(1000000);
-//            verticalMotorJoints[i].setParamFMax2(10000);
-//            verticalMotorJoints[i].setParamFMax3(10000);
-//            verticalMotorJoints[i].setParamVel2(0);
-//            verticalMotorJoints[i].setParamVel3(0);
-//            verticalMotorJoints[i].setParamVel(0);
-//        }
-//
-//        sliderFxBody = FxBody.newInstance(world, botSpace);
-//        slideMass = OdeHelper.createMass();
-//        slideMass.setBox(1, tetrixWidth, sliderLength, tetrixWidth);
-//        slideMass.setMass(2);
-//        sliderFxBody.setMass(slideMass);
-//        Group slideGroup = new Group();
-//        Box slider = new Box(tetrixWidth, sliderLength, tetrixWidth);
-//        slider.setMaterial(liftMaterial1);
-//        box = new Box(3.2, 6.4, 10);
-//        box.setMaterial(new PhongMaterial(Color.color(0.3, 0.3, 0.3)));
-//        box.getTransforms().add(new Translate(0, 0.2*sliderLength, -tetrixWidth/2 - 5));
-//        slideGroup.getChildren().addAll(slider, box);
-//        box = new Box(12.5,12.5, 0.4);
-//        box.setMaterial(new PhongMaterial(Color.color(0.6, 0.6, 0, 0.5)));
-//        box.getTransforms().add(new Translate(0, 0.2*sliderLength, -tetrixWidth/2 - 10));
-//        slideGroup.getChildren().add(box);
-//        box = new Box(0.4, 12.5, 12.5);
-//        box.setMaterial(new PhongMaterial(Color.color(0.6, 0.6, 0, 0.5)));
-//        box.getTransforms().add(new Translate(-6.25, 0.2*sliderLength, -tetrixWidth/2-16.25));
-//        slideGroup.getChildren().add(box);
-//        sliderFxBody.setNode(slideGroup, true);
-//        sliderFxBody.setPosition(0, 0, liftHt - halfPltHt - 3);
-//        fxBody.getChildren().add(sliderFxBody);
-//
-//        sliderSlideJoint = OdeHelper.createSliderJoint(world);
-//        sliderSlideJoint.attach(liftFxBodies[2].getBody(), sliderFxBody.getBody());
-//        sliderSlideJoint.setAxis(0, -1, 0);
-//        sliderSlideJoint.setParamFMax(10000);
-//        sliderSlideJoint.setParamHiStop(0.55*sliderLength);
-//        sliderSlideJoint.setParamLoStop(-0.1*sliderLength);
-//        sliderMotorJoint = OdeHelper.createLMotorJoint(world);
-//        sliderMotorJoint.attach(liftFxBodies[2].getBody(), sliderFxBody.getBody());
-//        sliderMotorJoint.setNumAxes(3);
-//        sliderMotorJoint.setAxis(0, 1, 0, -1, 0);
-//        sliderMotorJoint.setAxis(1, 1, 1, 0, 0);
-//        sliderMotorJoint.setAxis(2, 1, 0, 0, 1);
-//        sliderMotorJoint.setParamFMax(1000000);
-//        sliderMotorJoint.setParamFMax2(10000);
-//        sliderMotorJoint.setParamFMax3(1000000);
-//        sliderMotorJoint.setParamVel(0);
-//        sliderMotorJoint.setParamVel2(0);
-//        sliderMotorJoint.setParamVel3(0);
-//
-//        Box hand = new Box(0.4, 12.5, 12.5);
-//        hand.setMaterial(new PhongMaterial(Color.color(0.6, 0, 0.6, 0.5)));
-//        handMass = OdeHelper.createMass();
-//        handMass.setBox(1, 0.4, 12.5, 12.5);
-//        handMass.setMass(0.5);
-//        handFxBody = FxBody.newInstance(world, botSpace);
-//        handFxBody.setMass(handMass);
-//        handFxBody.setNode(hand, true);
-//        handFxBody.setPosition(6.25, 0.2*sliderLength, 7);
-//        fxBody.getChildren().add(handFxBody);
-//        handHingeJoint = OdeHelper.createHingeJoint(world);
-//        handHingeJoint.attach(sliderFxBody.getBody(), handFxBody.getBody());
-//        handHingeJoint.setAnchor(6.25, 0.2*sliderLength, 13.25);
-//        handHingeJoint.setAxis(0, 1, 0);
-//        handHingeJoint.setParamHiStop( 20.0 * Math.PI/180.0);
-//        handHingeJoint.setParamLoStop( -30 * Math.PI/180.0);
-//        handMotorJoint = OdeHelper.createAMotorJoint(world);
-//        handMotorJoint.attach(sliderFxBody.getBody(), handFxBody.getBody());
-//        handMotorJoint.setNumAxes(3);
-//        handMotorJoint.setAxis(0, 1, 0, 1, 0);
-//        handMotorJoint.setAxis(1, 1, 1, 0, 0);
-//        handMotorJoint.setAxis(2, 1, 0, 0, 1);
-//        handMotorJoint.setParamVel(-0.5);
-//        handMotorJoint.setParamVel2(0);
-//        handMotorJoint.setParamVel3(0);
-//        handMotorJoint.setParamFMax(10000);
-//        handMotorJoint.setParamFMax2(10000);
-//        handMotorJoint.setParamFMax3(10000);
-//
-//        zBase = 5.08;
-//
-//    }
 
 
     /**
@@ -981,6 +754,13 @@ public class BetaBot extends VirtualBot {
 
 
             }  else if (o1BotBottom || o2BotBottom){
+                /*
+                 * NOTE: Contacts involving the bottom surface of the bot are used ONLY to support the bot.
+                 *       There is no friction for these contacts. As far as the physics engine is concerned,
+                 *       the bot is gliding without friction over the field. Kinematics of robot motion on
+                 *       the field are handled in the updateState() method, and include an estimate of the effects
+                 *       of friction.
+                 */
                 contact.surface.mode = dContactSoftERP | dContactSoftCFM | dContactApprox1 | dContactBounce;
                 contact.surface.mu = 0;
                 contact.surface.soft_cfm = 0.00000001;
@@ -997,6 +777,23 @@ public class BetaBot extends VirtualBot {
             }
             DJoint c = OdeHelper.createContactJoint (controller.getWorld(),contactGroup,contact);
             c.attach (contact.geom.g1.getBody(), contact.geom.g2.getBody());
+
+            /*
+             * Create a new DJointFeedback object and assign it to this contact joint. It will be populated with the
+             * force and torque attributable to this contact joint during the next world update. From this, create a
+             * Feedback object that includes the DJointFeedback object as well as an index. The index indicates whether
+             * the robot is the first or second body participating in this joint. Add the Feedback object to the
+             * feedBackList. The list will be used to determine cumulative force and torque on the robot from
+             * collisions when doing the next iteration of robot kinematics (i.e., call to updateState).
+             */
+            DJoint.DJointFeedback fb = new DJoint.DJointFeedback();
+            if (c.getBody(0) == fxBody.getBody()) {
+                c.setFeedback(fb);
+                feedBackList.add(new FeedBack(fb, 0));
+            } else if (c.getBody(1) == fxBody.getBody()){
+                c.setFeedback(fb);
+                feedBackList.add(new FeedBack(fb, 1));
+            }
         }
 
     }

@@ -121,22 +121,27 @@ public class DcMotorImpl implements DcMotor {
 
     /**
      * For internal use only.
-     * Updates motor speed based on current speed, power, and inertia. Then, uses motor speed to update position.
+     * Updates motor speed based on current speed, power, and inertia. Then, uses average motor speed to update position.
      * @param milliseconds number of milliseconds since last update
      * @return change in actualPosition
      */
     public synchronized double update(double milliseconds){
+        double speedChange, avgSpeed;
         if (mode == RunMode.STOP_AND_RESET_ENCODER) return 0.0;
         else if (mode == RunMode.RUN_TO_POSITION){
             double targetSpeed = COEFF_PROPORTIONATE * (double)(targetPosition - getCurrentPosition())
                     / MOTOR_TYPE.MAX_TICKS_PER_SECOND;
             double absPower = Math.abs(power);
             targetSpeed = Math.max(-absPower, Math.min(targetSpeed, absPower));
-            speed = speed + (1.0 - inertia) * (targetSpeed - speed);
+            speedChange = (1.0 - inertia) * (targetSpeed - speed);
+            avgSpeed = speed + speedChange / 2.0;
+            speed = speed + speedChange;
         } else {
-            speed = speed + (1.0 - inertia) * (power - speed);
+            speedChange = (1.0 - inertia) * (power - speed);
+            avgSpeed = speed + speedChange / 2.0;
+            speed = speed + speedChange;
         }
-        double positionChange = speed * MOTOR_TYPE.MAX_TICKS_PER_SECOND * milliseconds / 1000.0;
+        double positionChange = avgSpeed * MOTOR_TYPE.MAX_TICKS_PER_SECOND * milliseconds / 1000.0;
         positionChange *= (1.0 + systematicErrorFrac + randomErrorFrac * random.nextGaussian());
         if (direction == Direction.FORWARD && MOTOR_TYPE.REVERSED ||
                 direction == Direction.REVERSE && !MOTOR_TYPE.REVERSED) positionChange = -positionChange;
