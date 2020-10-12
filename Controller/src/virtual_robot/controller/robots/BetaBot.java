@@ -199,16 +199,23 @@ public class BetaBot extends VirtualBot {
             }
         }
 
+        /*
+         * Tentative position change in the ROBOT COORDINATE SYSTEM
+         */
         double dxR = robotDeltaPos[0];
         double dyR = robotDeltaPos[1];
         double dHeading = robotDeltaPos[2];
-        DMatrix3C currentRot = fxBody.getRotation();
-        double heading = Math.atan2(currentRot.get10(), currentRot.get00());
-        double avgHeading = heading + dHeading / 2.0;
+
+        /*
+         * Convert to tentative position change in the WOORLD COORDINATE SYSTEM
+         */
+        DMatrix3C currentRot = fxBody.getRotation();    //Matrix representing the current orientation in WORLD SYSTEM
+        double heading = Math.atan2(currentRot.get10(), currentRot.get00());    //Current heading in WORLD SYSTEM
+        double avgHeading = heading + dHeading / 2.0;                    //Tentative average heading during current step
         double sinAvg = Math.sin(avgHeading);
         double cosAvg = Math.cos(avgHeading);
-        double dX = dxR * cosAvg - dyR * sinAvg;
-        double dY = dxR * sinAvg + dyR * cosAvg;
+        double dX = dxR * cosAvg - dyR * sinAvg;        //Tentative change in X-position in WORLD SYSTEM
+        double dY = dxR * sinAvg + dyR * cosAvg;        //Tentative change in Y-position in WORLD SYSTEM
 
         /* Determine the force and torque (WORLD COORDS) that would be required to achieve the changes predicted by
          * the kinematic model.
@@ -218,18 +225,23 @@ public class BetaBot extends VirtualBot {
          *
          *       d(Position) = v0*t + 0.5*(F/m)*t*t
          *       d(Heading) = omega0*t + 0.5*(Torque/I)*t*t
+         *
+         *       or,
+         *
+         *       F = 2m( d(Position) - v0*t ) / (t*t)
+         *       Torque = 2I( d(Heading) - omega0*t ) / (t*t)
          */
 
-        double t = millis / 1000.0;
+        double t = millis / 1000.0;     //Time increment in seconds
         double tSqr = t * t;
-        DVector3 deltaPos = new DVector3(dX, dY, 0);
-        DVector3C vel = fxBody.getLinearVel().clone();
-        ((DVector3)vel).set2(0);
-        DVector3 force = deltaPos.reSub(vel.reScale(t)).reScale(2.0 * TOTAL_MASS / tSqr);
-        double angVel = fxBody.getAngularVel().get2();
-        float torque = (float)(2.0 * TOTAL_Z_INERTIA * (dHeading - angVel*t)/tSqr);
+        DVector3 deltaPos = new DVector3(dX, dY, 0);    //Vector representing the tentative change in position
+        DVector3C vel = fxBody.getLinearVel().clone();      //Robot velocity at the beginning of this step
+        ((DVector3)vel).set2(0);                            //Remove any z-component of the beginning velocity
+        DVector3 force = deltaPos.reSub(vel.reScale(t)).reScale(2.0 * TOTAL_MASS / tSqr);   //Calculate net force required to achieve the tentative final position
+        double angVel = fxBody.getAngularVel().get2();                                      //Angular speed at the beginning of this step
+        float torque = (float)(2.0 * TOTAL_Z_INERTIA * (dHeading - angVel*t)/tSqr);         //Calculate net torque required to achieve the tentative final heading
 
-        //Convert the force to the ROBOT COORDINATE system
+        //Convert the tentative total force to the ROBOT COORDINATE system
 
         double sinHd = Math.sin(heading);
         double cosHd = Math.cos(heading);
@@ -239,27 +251,38 @@ public class BetaBot extends VirtualBot {
 
         VectorF totalBotForces = new VectorF(fXR, fYR, torque, 0);      //Tentative total force & torque on bot in robot coords
 
-        //Determine cumulative force & torque on bot, in robot coords, from collisions during preceding world update,
-        //using the feedbackList
-
+        /*
+         * Vector to hold the external forces on the robot due to collisions (see below)
+         */
         VectorF collisionForces = new VectorF(0,0,0,0);
+
+        /*
+          ==========================================  OPTIONAL  ===================================================
+          Determine cumulative force & torque on bot, in robot coords, from collisions during preceding world update,
+          using the feedbackList. NOTE:  this step is optional; the simulation works quite well without it. This is a more
+          physical approach, but it may introduce some problems if the external forces obtained from the physics engine
+          are not accurate (As the ODE documentation suggests can occur). If that happens, just remove this step.
+          ==========================================================================================================
 
         for (FeedBack f: feedBackList){
             float fXCR, fYCR;
-            if (f.index == 0) {
+            if (f.index == 0) {     //Robot is body #1 for this collision
                 fXCR = (float)((float)f.fb.f1.get0()*cosHd + (float)f.fb.f1.get1()*sinHd);
                 fYCR = (float)(-(float)f.fb.f1.get0()*sinHd + (float)f.fb.f1.get1()*cosHd);
                 collisionForces.add(new VectorF(fXCR, fYCR, (float)f.fb.t1.get2(), 0));
-            } else {
+            } else {                //Robot is body #2 for this collision
                 fXCR = (float)((float)f.fb.f2.get0()*cosHd + (float)f.fb.f2.get1()*sinHd);
                 fYCR = (float)(-(float)f.fb.f2.get0()*sinHd + (float)f.fb.f2.get1()*cosHd);
                 collisionForces.add(new VectorF(fXCR, fYCR, (float)f.fb.t2.get2(), 0));
             }
         }
 
+        */
 
-        //Clear feedBackList so it will be ready to accumulate collision feedback during the next cycle
 
+        /*
+         * We need to clear the feedBack list at this point, whether we are making use of the collision forces or not.
+         */
         feedBackList.clear();
 
         //Frictional force (from floor) on bot, in world coords is tentatively equal to total force minus collision force
@@ -755,6 +778,14 @@ public class BetaBot extends VirtualBot {
             DJoint c = OdeHelper.createContactJoint (controller.getWorld(),contactGroup,contact);
             c.attach (contact.geom.g1.getBody(), contact.geom.g2.getBody());
 
+            /*
+             * Create a new DJointFeedback object and assign it to this contact joint. It will be populated with the
+             * force and torque attributable to this contact joint during the next world update. From this, create a
+             * Feedback object that includes the DJointFeedback object as well as an index. The index indicates whether
+             * the robot is the first or second body participating in this joint. Add the Feedback object to the
+             * feedBackList. The list will be used to determine cumulative force and torque on the robot from
+             * collisions when doing the next iteration of robot kinematics (i.e., call to updateState).
+             */
             DJoint.DJointFeedback fb = new DJoint.DJointFeedback();
             if (c.getBody(0) == fxBody.getBody()) {
                 c.setFeedback(fb);
