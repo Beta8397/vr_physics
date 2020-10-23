@@ -36,6 +36,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import virtual_robot.controller.robots.BetaBot;
 import virtual_robot.ftcfield.FtcField;
 import virtual_robot.ftcfield.SkyStoneField;
+import virtual_robot.ftcfield.UltimateGoalField;
 
 import java.io.IOException;
 import java.lang.annotation.Annotation;
@@ -166,7 +167,8 @@ public class VirtualRobotController {
         setupODE();
         setUp3DSubScene();
 //        createField();
-        ftcField = new SkyStoneField(subSceneGroup, world, space);
+//        ftcField = new SkyStoneField(subSceneGroup, world, space);
+        ftcField = new UltimateGoalField(subSceneGroup, world, space);
         ftcField.setup();
         currentCameraButton = (Button)getNodeByGridPaneIndex(cameraGrid, 1, 1);
         OpMode.setVirtualRobotController(this);
