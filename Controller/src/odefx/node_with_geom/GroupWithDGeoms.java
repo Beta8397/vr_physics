@@ -35,22 +35,7 @@ public class GroupWithDGeoms extends Group {
             if (node instanceof GroupWithDGeoms){
                 ((GroupWithDGeoms)node).updateGeomOffsets(transform);
             } else {
-                Transform nodeTransform = transform.clone();
-                ObservableList<Transform> nodeTransforms = node.getTransforms();
-                for (int i=0; i<nodeTransforms.size(); i++) nodeTransform = nodeTransform.createConcatenation(nodeTransforms.get(i));
-                Rotate nodeRelGeomRotation = ((Shape3DWithDGeom)node).getRelGeomRotation();
-                Translate nodeRelGeomOffset = ((Shape3DWithDGeom)node).getRelGeomOffset();
-                if (nodeRelGeomOffset != null) nodeTransform = nodeTransform.createConcatenation(nodeRelGeomOffset);
-                if (nodeRelGeomRotation != null) nodeTransform = nodeTransform.createConcatenation(nodeRelGeomRotation);
-                DGeom dGeom = ((Shape3DWithDGeom)node).getDGeom();
-                if (node instanceof Cylinder) {
-                    nodeTransform = nodeTransform.createConcatenation(new Rotate(90, new Point3D(1, 0, 0)));
-                }
-                double[] tData = nodeTransform.toArray(MatrixType.MT_3D_3x4);
-                dGeom.setOffsetPosition(tData[3], tData[7], tData[11]);
-                DMatrix3 dRotMatrix = new DMatrix3(tData[0], tData[1], tData[2], tData[4], tData[5], tData[6],
-                        tData[8], tData[9], tData[10]);
-                dGeom.setOffsetRotation(dRotMatrix);
+                ((Shape3DWithDGeom)node).updateGeomOffset(transform);
             }
 
         }

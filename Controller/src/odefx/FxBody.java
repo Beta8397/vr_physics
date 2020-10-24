@@ -8,19 +8,19 @@ import javafx.scene.transform.Transform;
 import javafx.scene.transform.Translate;
 import org.ode4j.math.*;
 import org.ode4j.ode.*;
+import org.ode4j.ode.internal.DxBody;
+import org.ode4j.ode.internal.DxMass;
+import org.ode4j.ode.internal.DxWorld;
+import org.ode4j.ode.internal.Objects_H;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 
-/**
- * Attempting to encapsulate an ODE4J DGeom (possibly attached to a DBody) along with a JavaFX Shape3D or Group,
- * with convenience methods to create such objects and to update display.
- */
-public class FxBody {
+import static org.ode4j.ode.internal.Common.dAASSERT;
 
-    private DBody dBody = null;
+public class FxBody extends DxBody {
 
     private Node node = null;
 
@@ -35,32 +35,81 @@ public class FxBody {
      */
     private List<FxBody> children = new ArrayList<>();
 
-    public DBody getBody(){
-        return dBody;
+    private FxBody(DxWorld world){
+        super(world);
     }
 
-    /**
-     * Create new instance of FxBody with new DBody
-     * @param world DBody will be placed in this world
-     * @return
-     */
     public static FxBody newInstance(DWorld world){
-        DBody dBody = OdeHelper.createBody(world);
-        return new FxBody(dBody);
+
+        DxWorld w = (DxWorld)world;
+        dAASSERT (w);
+        FxBody b = new FxBody(w);
+        b.firstjoint.set(null);
+        b.flags = 0;
+        b.geom = null;
+        b.average_lvel_buffer = null;
+        b.average_avel_buffer = null;
+        //TZ
+        b.mass = new DxMass();
+        b.mass.dMassSetParameters (1, 0,0,0,1,1,1,0,0,0);
+        b.invI = new DMatrix3();
+        //MAT.dSetZero (b.invI.v,4*3);
+        b.invI.set00( 1 );
+        b.invI.set11( 1 );
+        b.invI.set22( 1 );
+        b.invMass = 1;
+        b._posr = new Objects_H.DxPosR();
+        //MAT.dSetZero (b.posr.pos.v,4);
+        b._q = new DQuaternion();
+        //MAT.dSetZero (b._q.v,4);
+        b._q.set( 0, 1 );
+        b._posr.Rw().setIdentity();
+        b.lvel = new DVector3();
+        //MAT.dSetZero (b.lvel.v,4);
+        b.avel = new DVector3();
+        //MAT.dSetZero (b.avel.v,4);
+        b.facc = new DVector3();
+        //MAT.dSetZero (b.facc.v,4);
+        b.tacc = new DVector3();
+        //MAT.dSetZero (b.tacc.v,4);
+        b.finite_rot_axis = new DVector3();
+        //MAT.dSetZero (b.finite_rot_axis.v,4);
+        //addObjectToList (b,(dObject **) &w.firstbody);
+        addObjectToList(b, w.firstbody);
+        w.nb++;
+
+        // set auto-disable parameters
+        b.average_avel_buffer = b.average_lvel_buffer = null; // no buffer at beginning
+        b.dBodySetAutoDisableDefaults ();	// must do this after adding to world
+        b.adis_stepsleft = b.adis.idle_steps;
+        b.adis_timeleft = b.adis.idle_time;
+        b.average_counter = 0;
+        b.average_ready = 0; // average buffer not filled on the beginning
+        b.dBodySetAutoDisableAverageSamplesCount(b.adis.average_samples);
+
+        b.moved_callback = null;
+
+        b.dBodySetDampingDefaults();	// must do this after adding to world
+
+        b.flags |= w.body_flags & dxBodyMaxAngularSpeed;
+        b.max_angular_speed = w.max_angular_speed;
+
+        b.flags |= dxBodyGyroscopic;
+
+        return b;
     }
 
     /**
-     * Create new instance of FxBody with new DBody
+     * Create new instance of FxBody2 with new DBody
      * @param world DBody will be placed in this world
      * @param space DGeoms created/added to this FxBody will be placed in this botSpace
      * @return
      */
     public static FxBody newInstance(DWorld world, DSpace space){
-        DBody dBody = OdeHelper.createBody(world);
-        return new FxBody(dBody, space);
+        FxBody fxBody2 = newInstance(world);
+        fxBody2.dSpace = space;
+        return fxBody2;
     };
-
-    public List<FxBody> getChildren() { return children;}
 
     /**
      * Get the JavaFx Node (should be either a Group or Shape3D) associated with this FxBody
@@ -84,7 +133,7 @@ public class FxBody {
      */
     public void setSpace(DSpace dSpace) {
         this.dSpace = dSpace;
-        DGeom dGeom = dBody.getFirstGeom();
+        DGeom dGeom = this.getFirstGeom();
         while (dGeom != null){
             if (dSpace == null) {
                 DSpace s = dGeom.getSpace();
@@ -92,42 +141,18 @@ public class FxBody {
             } else {
                 dSpace.add(dGeom);
             }
-            dGeom = dBody.getNextGeom(dGeom);
+            dGeom = this.getNextGeom(dGeom);
         }
     }
 
-    /**
-     * Private constructor -- use newInstance
-     * @param body
-     */
-    private FxBody(DBody body){
-        dBody = body;
-    }
-
-    /**
-     * Private constructor -- use newInstance
-     * @param body
-     * @param space
-     */
-    private FxBody(DBody body, DSpace space){
-        dBody = body;
-        dSpace = space;
-    }
-
-    /**
-     * Set the mass of the DBody
-     * @param mass
-     */
-    public void setMass(DMass mass){
-        dBody.setMass(mass);
-    }
+    public List<FxBody> getChildren() { return children; }
 
     /**
      * Add a DGeom to the DBody, and also to the botSpace
      * @param dGeom
      */
     public void addGeom(DGeom dGeom){
-        dGeom.setBody(dBody);
+        dGeom.setBody(this);
         if (dSpace != null && dGeom.getSpace() == null) dSpace.add(dGeom);
         if (dGeom.getData() != null && dGeom.getData() instanceof String) geoms.put((String)dGeom.getData(), dGeom);
     }
@@ -146,13 +171,13 @@ public class FxBody {
 
                     @Override
                     public boolean hasNext() {
-                        if (current == null) return dBody.getFirstGeom() != null;
-                        else return dBody.getNextGeom(current) != null;
+                        if (current == null) return getFirstGeom() != null;
+                        else return getNextGeom(current) != null;
                     }
 
                     @Override
                     public DGeom next() {
-                        current = current == null? dBody.getFirstGeom() : dBody.getNextGeom(current);
+                        current = current == null? getFirstGeom() : getNextGeom(current);
                         return current;
                     }
                 };
@@ -189,6 +214,7 @@ public class FxBody {
         return geoms.get(name);
     }
 
+
     /**
      * Set category bits to the same value for all geoms belonging to this FxBody
      * @param bits
@@ -211,18 +237,25 @@ public class FxBody {
 
         //Next, destroy all of the joints
         List<DJoint> joints = new ArrayList<>();
-        int numJoints = dBody.getNumJoints();
+        int numJoints = getNumJoints();
         for (int i=0; i<numJoints; i++){
-            dBody.getJoint(i).destroy();
+            getJoint(i).destroy();
         }
 
-        //Next, destroy all of the children (if requested)
-        if (destroyChildren) {
-            for (int i = 0; i < children.size(); i++) children.get(i).destroy(true);
+        //Next, destroy all of the children
+        if (children != null){
+            for (FxBody child: children){
+                child.destroy(true);
+            }
         }
 
         //Finally, destroy the DBody
-        dBody.destroy();
+        super.destroy();
+    }
+
+    @Override
+    public void destroy(){
+        destroy(true);
     }
 
     /**
@@ -267,7 +300,7 @@ public class FxBody {
      */
     public void setNode(Node node, boolean generateGeoms) {
         if (generateGeoms) {
-            FxBodyHelper.dGeomsFromNode(node, dSpace, dBody);
+            FxBodyHelper.dGeomsFromNode(node, dSpace, this);
         }
         this.node = node;
         this.node.getTransforms().add(0, new Rotate(0));
@@ -284,12 +317,8 @@ public class FxBody {
         if (node == null) return;
         ObservableList<Transform> transforms = node.getTransforms();
         if (transforms.size() < 2) return;
-        DVector3C pos;
-        DQuaternionC quat;
-        if (dBody != null) {
-            pos = dBody.getPosition();
-            quat = dBody.getQuaternion();
-        } else return;
+        DVector3C pos = getPosition();
+        DQuaternionC quat = getQuaternion();
         DVector3 axis = new DVector3(quat.get(1), quat.get(2), quat.get(3));
         double sinThetaOver2 = axis.length();
         double angle = 2.0 * Math.atan2(sinThetaOver2, quat.get(0)) * 180.0 / Math.PI;
@@ -322,7 +351,7 @@ public class FxBody {
      */
     public void setPosition(double x, double y, double z, boolean setChildPos) {
         DVector3C oldPos = getPosition().clone();
-        dBody.setPosition(x, y, z);
+        super.setPosition(x, y, z);
         if (setChildPos) {
             for (FxBody child : children) {
                 child.setPosition(((DVector3)child.getPosition()).reAdd(getPosition()).reSub(oldPos), true);
@@ -340,7 +369,7 @@ public class FxBody {
      */
     public void setPosition(DVector3C p, boolean setChildPos) {
         DVector3C oldPos = getPosition().clone();
-        dBody.setPosition(p);
+        super.setPosition(p);
         if (setChildPos) {
             for (FxBody child : children) {
                 child.setPosition(((DVector3)child.getPosition()).reAdd(getPosition()).reSub(oldPos), true);
@@ -358,7 +387,7 @@ public class FxBody {
      */
     public void setRotation(DMatrix3C R, boolean setChildRot) {
         DMatrix3C oldRot = getRotation().clone();
-        dBody.setRotation(R);
+        super.setRotation(R);
         if (setChildRot){
             DMatrix3 invOldRot = new DMatrix3();
             DMatrix.dInvertPDMatrix(oldRot, invOldRot);
@@ -386,7 +415,7 @@ public class FxBody {
      */
     public void setQuaternion(DQuaternionC q, boolean setChildRot) {
         DMatrix3C oldRot = getRotation().clone();
-        dBody.setQuaternion(q);
+        super.setQuaternion(q);
         if (setChildRot){
             DMatrix3 invOldRot = new DMatrix3();
             DMatrix.dInvertPDMatrix(oldRot, invOldRot);
@@ -409,471 +438,4 @@ public class FxBody {
 
     public void setQuaternion(DQuaternionC q) { setQuaternion(q, true);}
 
-    public void setData(Object data) {
-        dBody.setData(data);
-    }
-
-    public Object getData() {
-        return dBody.getData();
-    }
-
-
-    public void setLinearVel(double x, double y, double z) {
-        dBody.setLinearVel(x, y, z);
-    }
-
-
-    public void setLinearVel(DVector3C v) {
-        dBody.setLinearVel(v);
-    }
-
-
-    public void setAngularVel(double x, double y, double z) {
-        dBody.setAngularVel(x, y, z);
-    }
-
-
-    public void setAngularVel(DVector3C v) {
-        dBody.setAngularVel(v);
-    }
-
-
-    public DVector3C getPosition() {
-        return dBody.getPosition();
-    }
-
-
-    public DMatrix3C getRotation() {
-        return dBody.getRotation();
-    }
-
-
-    public DQuaternionC getQuaternion() {
-        return dBody.getQuaternion();
-    }
-
-
-    public DVector3C getLinearVel() {
-        return dBody.getLinearVel();
-    }
-
-
-    public DVector3C getAngularVel() {
-        return dBody.getAngularVel();
-    }
-
-
-    public void setMass(DMassC mass) {
-        dBody.setMass(mass);
-    }
-
-
-    public DMassC getMass() {
-        return dBody.getMass();
-    }
-
-
-    public DWorld getWorld() {
-        return dBody.getWorld();
-    }
-
-
-    public void setAutoDisableLinearThreshold(double threshold) {
-        dBody.setAutoDisableLinearThreshold(threshold);
-    }
-
-
-    public double getAutoDisableLinearThreshold() {
-        return dBody.getAutoDisableLinearThreshold();
-    }
-
-
-    public void setAutoDisableAngularThreshold(double threshold) {
-        dBody.setAutoDisableAngularThreshold(threshold);
-    }
-
-
-    public double getAutoDisableAngularThreshold() {
-        return dBody.getAutoDisableAngularThreshold();
-    }
-
-
-    public void setAutoDisableSteps(int steps) {
-        dBody.setAutoDisableSteps(steps);
-    }
-
-
-    public int getAutoDisableSteps() {
-        return dBody.getAutoDisableSteps();
-    }
-
-
-    public void setAutoDisableTime(double time) {
-        dBody.setAutoDisableTime(time);
-    }
-
-
-    public double getAutoDisableTime() {
-        return dBody.getAutoDisableTime();
-    }
-
-
-    public void setAutoDisableFlag(boolean do_auto_disable) {
-        dBody.setAutoDisableFlag(do_auto_disable);
-    }
-
-
-    public boolean getAutoDisableFlag() {
-        return dBody.getAutoDisableFlag();
-    }
-
-
-    public int getAutoDisableAverageSamplesCount() {
-        return dBody.getAutoDisableAverageSamplesCount();
-    }
-
-
-    public void setAutoDisableAverageSamplesCount(int average_samples_count) {
-        dBody.setAutoDisableAverageSamplesCount(average_samples_count);
-    }
-
-
-    public void setAutoDisableDefaults() {
-        dBody.setAutoDisableDefaults();
-    }
-
-
-    public void addForce(double fx, double fy, double fz) {
-        dBody.addForce(fx, fy, fz);
-    }
-
-
-    public void addForce(DVector3C f) {
-        dBody.addForce(f);
-    }
-
-
-    public void addTorque(double fx, double fy, double fz) {
-        dBody.addTorque(fx, fy, fz);
-    }
-
-
-    public void addTorque(DVector3C t) {
-        dBody.addTorque(t);
-    }
-
-
-    public void addRelForce(double fx, double fy, double fz) {
-        dBody.addRelForce(fx, fy, fz);
-    }
-
-
-    public void addRelForce(DVector3C f) {
-        dBody.addRelForce(f);
-    }
-
-
-    public void addRelTorque(double fx, double fy, double fz) {
-        dBody.addRelTorque(fx, fy, fz);
-    }
-
-
-    public void addRelTorque(DVector3C t) {
-        dBody.addRelTorque(t);
-    }
-
-
-    public void addForceAtPos(double fx, double fy, double fz, double px, double py, double pz) {
-        dBody.addForceAtPos(fx, fy, fz, px, py, pz);
-    }
-
-
-    public void addForceAtPos(DVector3C f, DVector3C p) {
-        dBody.addForceAtPos(f, p);
-    }
-
-
-    public void addForceAtRelPos(double fx, double fy, double fz, double px, double py, double pz) {
-        dBody.addForceAtRelPos(fx, fy, fz, px, py, pz);
-    }
-
-
-    public void addForceAtRelPos(DVector3C f, DVector3C p) {
-        dBody.addForceAtRelPos(f, p);
-    }
-
-
-    public void addRelForceAtPos(double fx, double fy, double fz, double px, double py, double pz) {
-        dBody.addRelForceAtPos(fx, fy, fz, px, py, pz);
-    }
-
-
-    public void addRelForceAtPos(DVector3C f, DVector3C p) {
-        dBody.addRelForceAtPos(f, p);
-    }
-
-
-    public void addRelForceAtRelPos(double fx, double fy, double fz, double px, double py, double pz) {
-        dBody.addRelForceAtRelPos(fx, fy, fz, px, py, pz);
-    }
-
-
-    public void addRelForceAtRelPos(DVector3C f, DVector3C p) {
-        dBody.addRelForceAtRelPos(f, p);
-    }
-
-
-    public DVector3C getForce() {
-        return dBody.getForce();
-    }
-
-
-    public DVector3C getTorque() {
-        return dBody.getTorque();
-    }
-
-
-    public void setForce(double x, double y, double z) {
-        dBody.setForce(x, y, z);
-    }
-
-
-    public void setForce(DVector3C f) {
-        dBody.setForce(f);
-    }
-
-
-    public void setTorque(double x, double y, double z) {
-        dBody.setTorque(x, y, z);
-    }
-
-
-    public void setTorque(DVector3C t) {
-        dBody.setTorque(t);
-    }
-
-
-    public void getRelPointPos(double px, double py, double pz, DVector3 result) {
-        dBody.getRelPointPos(px, py, pz, result);
-    }
-
-
-    public void getRelPointPos(DVector3C p, DVector3 result) {
-        dBody.getRelPointPos(p, result);
-    }
-
-
-    public void getRelPointVel(double px, double py, double pz, DVector3 result) {
-        dBody.getRelPointVel(px, py, pz, result);
-    }
-
-
-    public void getRelPointVel(DVector3C p, DVector3 result) {
-        dBody.getRelPointVel(p, result);
-    }
-
-
-    public void getPointVel(double px, double py, double pz, DVector3 result) {
-        dBody.getPointVel(px, py, pz, result);
-    }
-
-
-    public void getPointVel(DVector3C p, DVector3 result) {
-        dBody.getPointVel(p, result);
-    }
-
-
-    public void getPosRelPoint(double px, double py, double pz, DVector3 result) {
-        dBody.getPointVel(px, py, pz, result);
-    }
-
-
-    public void getPosRelPoint(DVector3C p, DVector3 result) {
-        dBody.getPosRelPoint(p, result);
-    }
-
-
-    public void vectorToWorld(double px, double py, double pz, DVector3 result) {
-        dBody.vectorToWorld(px, py, pz, result);
-    }
-
-
-    public void vectorToWorld(DVector3C p, DVector3 result) {
-        dBody.vectorToWorld(p, result);
-    }
-
-
-    public void vectorFromWorld(double px, double py, double pz, DVector3 result) {
-        dBody.vectorFromWorld(px, py, pz, result);
-    }
-
-
-    public void vectorFromWorld(DVector3C p, DVector3 result) {
-        dBody.vectorFromWorld(p, result);
-    }
-
-
-    public void setFiniteRotationMode(boolean mode) {
-        dBody.setFiniteRotationMode(mode);
-    }
-
-
-    public void setFiniteRotationAxis(double x, double y, double z) {
-        dBody.setFiniteRotationAxis(x, y, z);
-    }
-
-
-    public void setFiniteRotationAxis(DVector3C a) {
-        dBody.setFiniteRotationAxis(a);
-    }
-
-
-    public boolean getFiniteRotationMode() {
-        return dBody.getFiniteRotationMode();
-    }
-
-
-    public void getFiniteRotationAxis(DVector3 result) {
-        dBody.getFiniteRotationAxis(result);
-    }
-
-
-    public int getNumJoints() {
-        return dBody.getNumJoints();
-    }
-
-
-    public DJoint getJoint(int index) {
-        return dBody.getJoint(index);
-    }
-
-
-    public void setDynamic() {
-        dBody.setDynamic();
-    }
-
-
-    public void setKinematic() {
-        dBody.setKinematic();
-    }
-
-
-    public boolean isKinematic() {
-        return dBody.isKinematic();
-    }
-
-
-    public void enable() {
-        dBody.enable();
-    }
-
-
-    public void disable() {
-        dBody.disable();
-    }
-
-
-    public boolean isEnabled() {
-        return dBody.isEnabled();
-    }
-
-
-    public void setGravityMode(boolean mode) {
-        dBody.setGravityMode(mode);
-    }
-
-
-    public boolean getGravityMode() {
-        return dBody.getGravityMode();
-    }
-
-
-    public boolean isConnectedTo(DBody body) {
-        return dBody.isConnectedTo(body);
-    }
-
-
-    public double getLinearDamping() {
-        return dBody.getLinearDamping();
-    }
-
-
-    public void setLinearDamping(double scale) {
-        dBody.setLinearDamping(scale);
-    }
-
-
-    public double getAngularDamping() {
-        return dBody.getAngularDamping();
-    }
-
-
-    public void setAngularDamping(double scale) {
-        dBody.setAngularDamping(scale);
-    }
-
-
-    public void setDamping(double linear_scale, double angular_scale) {
-        dBody.setDamping(linear_scale, angular_scale);
-    }
-
-
-    public double getLinearDampingThreshold() {
-        return dBody.getLinearDampingThreshold();
-    }
-
-
-    public void setLinearDampingThreshold(double threshold) {
-        dBody.setLinearDampingThreshold(threshold);
-    }
-
-
-    public double getAngularDampingThreshold() {
-        return dBody.getAngularDampingThreshold();
-    }
-
-
-    public void setAngularDampingThreshold(double threshold) {
-        dBody.setAngularDampingThreshold(threshold);
-    }
-
-
-    public void setDampingDefaults() {
-        dBody.setDampingDefaults();
-    }
-
-
-    public double getMaxAngularSpeed() {
-        return dBody.getMaxAngularSpeed();
-    }
-
-
-    public void setMaxAngularSpeed(double max_speed) {
-        dBody.setMaxAngularSpeed(max_speed);
-    }
-
-
-    public boolean getGyroscopicMode() {
-        return dBody.getGyroscopicMode();
-    }
-
-
-    public void setGyroscopicMode(boolean enabled) {
-        dBody.setGyroscopicMode(enabled);
-    }
-
-
-    public void setMovedCallback(DBody.BodyMoveCallBack callback) {
-        dBody.setMovedCallback(callback);
-    }
-
-
-    public DGeom getFirstGeom() {
-        return dBody.getFirstGeom();
-    }
-
-
-    public DGeom getNextGeom(DGeom geom) {
-        return dBody.getNextGeom(geom);
-    }
 }

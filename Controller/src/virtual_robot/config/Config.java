@@ -20,5 +20,15 @@ public class Config {
     /**
      * The image object for the field.
      */
-    public static final Image BACKGROUND = new Image("/virtual_robot/assets/blank_skystone_field.bmp");
+    public static final Image BACKGROUND = new Image("/virtual_robot/assets/ultimate_goal_648.bmp");
+
+    /**
+     * Enum for the Game
+     */
+    public enum Game {SKYSTONE, ULTIMATE_GOAL}
+
+    /*
+     * Currently active game
+     */
+    public static final Game GAME = Game.ULTIMATE_GOAL;
 }

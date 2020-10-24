@@ -1,13 +1,15 @@
 package odefx.node_with_geom;
 
 
-import javafx.scene.shape.Box;
+import javafx.collections.ObservableList;
+import javafx.geometry.Point3D;
 import javafx.scene.shape.Cylinder;
+import javafx.scene.transform.MatrixType;
 import javafx.scene.transform.Rotate;
+import javafx.scene.transform.Transform;
 import javafx.scene.transform.Translate;
 import odefx.FxBody;
 import org.ode4j.math.DMatrix3;
-import org.ode4j.math.DVector3;
 import org.ode4j.ode.DBody;
 import org.ode4j.ode.DGeom;
 import org.ode4j.ode.OdeHelper;
@@ -15,8 +17,9 @@ import org.ode4j.ode.OdeHelper;
 public class CylWithDGeom extends Cylinder implements Shape3DWithDGeom {
     private String name = "CylWithDGeom";
     private DGeom dGeom;
-    private Rotate rotate = null;
-    private Translate translate = null;
+    private Rotate relativeGeomRotate = null;
+    private Translate relativeGeomTranslate = null;
+
 
     public CylWithDGeom(double radius, double height, FxBody fb){
         super(radius, height);
@@ -31,10 +34,9 @@ public class CylWithDGeom extends Cylinder implements Shape3DWithDGeom {
     }
 
     public CylWithDGeom(double radius, double height, FxBody fb, DGeom geom){
-            super(radius, height);
-            dGeom = geom;
-            fb.addGeom(dGeom);
-            this.name = name;
+        super(radius, height);
+        dGeom = geom;
+        fb.addGeom(dGeom);
     }
 
     public CylWithDGeom(double radius, double height, FxBody fb, String name, DGeom geom){
@@ -50,7 +52,6 @@ public class CylWithDGeom extends Cylinder implements Shape3DWithDGeom {
         dGeom = geom;
         if (dGeom != null && db != null) dGeom.setBody(db);
     }
-
     public DGeom getDGeom(){ return dGeom; }
 
     public void setName(String name){
@@ -60,12 +61,30 @@ public class CylWithDGeom extends Cylinder implements Shape3DWithDGeom {
 
     public String getName(){ return name; }
 
-    public void setRelGeomRotation(Rotate rotate){ this.rotate = rotate; }
+    public void setRelGeomRotate(Rotate rotate){ this.relativeGeomRotate = rotate; }
 
-    public Rotate getRelGeomRotation(){ return rotate; }
+    public Rotate getRelGeomRotate(){ return relativeGeomRotate; }
 
-    public void setRelGeomOffset(Translate translate) { this.translate = translate; }
+    public void setRelGeomOffset(Translate translate) { this.relativeGeomTranslate = translate; }
 
-    public Translate getRelGeomOffset () { return translate; }
+    public Translate getRelGeomOffset () { return relativeGeomTranslate; }
+
+    public void updateGeomOffset(Transform preTransform){
+        if (dGeom == null) return;
+        Transform transform = preTransform.clone();
+        ObservableList<Transform> nodeTransforms = this.getTransforms();
+        for (int i=0; i<nodeTransforms.size(); i++) transform = transform.createConcatenation(nodeTransforms.get(i));
+        Rotate nodeRelGeomRotate = this.getRelGeomRotate();
+        Translate nodeRelGeomOffset = this.getRelGeomOffset();
+        if (nodeRelGeomOffset != null) transform = transform.createConcatenation(nodeRelGeomOffset);
+        if (nodeRelGeomRotate != null) transform = transform.createConcatenation(nodeRelGeomRotate);
+        transform = transform.createConcatenation(new Rotate(90, new Point3D(1, 0, 0)));
+        double[] tData = transform.toArray(MatrixType.MT_3D_3x4);
+        dGeom.setOffsetPosition(tData[3], tData[7], tData[11]);
+        DMatrix3 dRotMatrix = new DMatrix3(tData[0], tData[1], tData[2], tData[4], tData[5], tData[6],
+                tData[8], tData[9], tData[10]);
+        dGeom.setOffsetRotation(dRotMatrix);
+    }
+
 
 }

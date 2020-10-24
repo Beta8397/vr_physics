@@ -1,47 +1,58 @@
 package virtual_robot.ftcfield;
 
 import javafx.scene.Group;
-import javafx.scene.Node;
 import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
-import javafx.scene.shape.Box;
-import javafx.scene.shape.Mesh;
 import javafx.scene.shape.MeshView;
 import javafx.scene.shape.TriangleMesh;
 import javafx.scene.transform.Rotate;
 import javafx.scene.transform.Translate;
 import odefx.CBits;
 import odefx.FxBody;
-import odefx.FxBody2;
 import odefx.FxBodyHelper;
-import org.ode4j.math.DMatrix3;
-import org.ode4j.math.DVector3C;
 import org.ode4j.ode.*;
-import util3d.ClosedMeshCreator;
 import util3d.Parts;
 import util3d.Util3D;
 import virtual_robot.config.Config;
 import virtual_robot.controller.VirtualRobotController;
 
-import javax.swing.text.View;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.ode4j.ode.OdeConstants.*;
 
 public class UltimateGoalField extends FtcField {
 
+    private static UltimateGoalField ultimateGoalFieldInstance = null;
+
     private final double HALF_FIELD_WIDTH;
     private final Image backgroundImage = Config.BACKGROUND;
 
-    FxBody2[] rings = new FxBody2[7];
-    DMass ringMass = OdeHelper.createMass();
-    PhongMaterial orangeMat = new PhongMaterial(Color.ORANGE);
+    List<FxBody> rings = new ArrayList<>();
+    static DMass ringMass = OdeHelper.createMass();
 
-    public UltimateGoalField(Group group, DWorld world, DSpace space){
+    public static UltimateGoalField getInstance(Group group, DWorld world, DSpace space){
+        if (ultimateGoalFieldInstance == null){
+            ultimateGoalFieldInstance = new UltimateGoalField(group, world, space);
+        }
+        return ultimateGoalFieldInstance;
+    }
+
+    public static UltimateGoalField getInstance() {
+        if (ultimateGoalFieldInstance == null){
+            throw new IllegalStateException("Ultimate Goal Field Instance has not been created yet");
+        } else {
+            return ultimateGoalFieldInstance;
+        }
+    }
+
+    private UltimateGoalField(Group group, DWorld world, DSpace space){
         super(group, world, space);
         HALF_FIELD_WIDTH = VirtualRobotController.HALF_FIELD_WIDTH;
     }
+
+    public List<FxBody> getRings(){ return rings; }
 
     @Override
     public void setup() {
@@ -121,45 +132,53 @@ public class UltimateGoalField extends FtcField {
         ringMass.setMass(100);
 
         for (int i=0; i<7; i++){
-            rings[i] = FxBody2.newInstance(world, space);
-            rings[i].setMass(ringMass);
-            Mesh ringMesh = Util3D.getParametricMesh(0, 2 * Math.PI, 0, -2 * Math.PI, 20, 10, true, true, new Util3D.Param3DEqn() {
-                @Override
-                public float x(float s, float t) {
-                    return (float)Math.cos(s) * (5 + 1.25f * (float)Math.cos(t));
-                }
-
-                @Override
-                public float y(float s, float t) {
-                    return (float)Math.sin(s) * (5 + 1.25f * (float)Math.cos(t));
-                }
-
-                @Override
-                public float z(float s, float t) {
-                    return (float) (float)Math.sin(t);
-                }
-            });
-            MeshView ringView = new MeshView(ringMesh);
-            ringView.setMaterial(orangeMat);
-            subSceneGroup.getChildren().add(ringView);
-            rings[i].setNode(ringView, true);
-            rings[i].setPosition(100*Math.cos(i*2*Math.PI/7), 100*Math.sin(i*2*Math.PI/7), 1);
-            rings[i].setCategoryBits(CBits.STONES);
-            rings[i].setCollideBits(0xFF);
+            FxBody ring = FxBody.newInstance(world, space);
+            ring.setMass(ringMass);
+            MeshView ringView = Parts.ringView();
+            ring.setNode(ringView, false);
+            DCylinder cyl = OdeHelper.createCylinder(6.25, 2.0);
+            cyl.setData("ring");
+            ring.addGeom(cyl);
+            if (i<4){
+                //Initial Rings on the field
+                ring.setPosition(92.7, -57.2, 1 + 2*i);
+                subSceneGroup.getChildren().add(ringView);
+            } else {
+                //Initial Rings on the bot
+                ring.getGeom("ring").disable();
+                ring.disable();
+            }
+            ring.setCategoryBits(CBits.STONES);
+            ring.setCollideBits(0xFF);
+            rings.add(ring);
         }
     }
 
+
     @Override
     public void reset() {
-        for (int i=0; i<rings.length; i++){
-            rings[i].setPosition(100*Math.cos(i*2*Math.PI/7), 100*Math.sin(i*2*Math.PI/7), 1);
+        for (int i=0; i<rings.size(); i++){
+            FxBody ring = rings.get(i);
+            if (i<4){
+                //Initial Rings on the field
+                ring.setPosition(92.7, -57.2, 1 + 2*i);
+                if (!subSceneGroup.getChildren().contains(ring.getNode())) subSceneGroup.getChildren().add(ring.getNode());
+                ring.getGeom("ring").enable();
+                ring.enable();
+            } else {
+                //Initial Rings on the bot
+                if (subSceneGroup.getChildren().contains(ring.getNode())) subSceneGroup.getChildren().remove(ring.getNode());
+                ring.getGeom("ring").disable();
+                ring.disable();
+                ring.setPosition(0,0,0);
+            }
         }
     }
 
     @Override
     public void updateDisplay() {
-        for (int i=0; i<rings.length; i++){
-            rings[i].updateNodeDisplay();
+        for (int i=0; i<rings.size(); i++){
+            rings.get(i).updateNodeDisplay();
         }
     }
 
@@ -194,12 +213,12 @@ public class UltimateGoalField extends FtcField {
 
     @Override
     public void preStepProcess() {
-        for (FxBody2 s: rings){
-            DVector3C linVel = s.getLinearVel();
-            DVector3C angVel = s.getAngularVel();
-            s.addForce(linVel.reScale(-0.1*s.getMass().getMass()));
-            s.addTorque(angVel.reScale(-0.1*s.getMass().getI().get22()));
-        }
+//        for (FxBody2 s: rings){
+//            DVector3C linVel = s.getLinearVel();
+//            DVector3C angVel = s.getAngularVel();
+//            s.addForce(linVel.reScale(-0.1*s.getMass().getMass()));
+//            s.addTorque(angVel.reScale(-0.1*s.getMass().getI().get22()));
+//        }
     }
 
 }

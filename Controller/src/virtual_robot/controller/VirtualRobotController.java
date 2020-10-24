@@ -79,9 +79,6 @@ public class VirtualRobotController {
 
     private DJointGroup contactGroup;
 
-    //Test Block
-//    FxBody testBlock;
-//    FxBody[] testBlocks = new FxBody[12];
 
     private FtcField ftcField;
 
@@ -166,18 +163,44 @@ public class VirtualRobotController {
     public void initialize() {
         setupODE();
         setUp3DSubScene();
-//        createField();
-//        ftcField = new SkyStoneField(subSceneGroup, world, space);
-        ftcField = new UltimateGoalField(subSceneGroup, world, space);
+
+        /*
+         *  Set up the field -- Using game that is selected in Config.java
+         */
+        if (Config.GAME == Config.Game.ULTIMATE_GOAL) {
+            ftcField = UltimateGoalField.getInstance(subSceneGroup, world, space);
+        } else {
+            ftcField = SkyStoneField.getInstance(subSceneGroup, world, space);
+        }
         ftcField.setup();
+
+        /*
+         * Select the middle camera position button (top view)
+         */
         currentCameraButton = (Button)getNodeByGridPaneIndex(cameraGrid, 1, 1);
+
+        /*
+         * Give VirtualBot and OpMode classes access to the VirtualRobotController object.
+         */
         OpMode.setVirtualRobotController(this);
         VirtualBot.setController(this);
+
+        /*
+         * Set up the OpMode and Robot Configuration Combo boxes.
+         */
         setupCbxOpModes();
         setupCbxRobotConfigs();
+
+        /*
+         * Set up the motor error and inertia sliders.
+         */
         sldRandomMotorError.valueProperty().addListener(sliderChangeListener);
         sldSystematicMotorError.valueProperty().addListener(sliderChangeListener);
         sldMotorInertia.valueProperty().addListener(sliderChangeListener);
+
+        /*
+         * Set up gamepad(s)
+         */
         if (Config.USE_VIRTUAL_GAMEPAD){
             checkBoxGamePad1.setVisible(false);
             checkBoxGamePad2.setVisible(false);
@@ -198,6 +221,10 @@ public class VirtualRobotController {
             checkBoxGamePad2.setStyle("-fx-opacity: 1");
             gamePadHelper = new RealGamePadHelper();
         }
+
+        /*
+         * Start the gamepad control loop.
+         */
         gamePadExecutorService.scheduleAtFixedRate(gamePadHelper, 0, 20, TimeUnit.MILLISECONDS);
     }
 
@@ -211,7 +238,7 @@ public class VirtualRobotController {
                 validConfigClasses.add(c);
         }
         cbxConfig.setItems(validConfigClasses);
-        cbxConfig.setValue(BetaBot.class);
+        cbxConfig.setValue(validConfigClasses.get(0));
 
         cbxConfig.setCellFactory(new Callback<ListView<Class<?>>, ListCell<Class<?>>>() {
             @Override
