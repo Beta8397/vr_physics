@@ -7,7 +7,6 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import odefx.FxBody;
 import org.ode4j.math.DMatrix3;
 import org.ode4j.math.DMatrix3C;
-import org.ode4j.math.DVector3;
 import org.ode4j.math.DVector3C;
 import org.ode4j.ode.*;
 import virtual_robot.config.Config;
@@ -142,6 +141,8 @@ public abstract class VirtualBot {
         DRotation.dRFromAxisAndAngle(R, 0, 0, 1, theta);
         fxBody.setPosition(x, y, zBase);
         fxBody.setRotation(R);
+        fxBody.setLinearVel(0, 0, 0);
+        fxBody.setAngularVel(0, 0,0);
     }
 
     /**
@@ -224,15 +225,5 @@ public abstract class VirtualBot {
      * hardwareMap variable.
      */
     protected abstract void createHardwareMap();
-
-    public void getGeomPositionOnField(DGeom dGeom, DMatrix3 rot, DVector3 pos){
-        DMatrix3C geomRotOffset = dGeom.getOffsetRotation();
-        DVector3C geomPosOffset = dGeom.getOffsetPosition();
-        DMatrix3C botRot = fxBody.getRotation();
-        DVector3C botPos = fxBody.getPosition();
-        DMatrix.dMultiply0(rot, botRot, geomRotOffset);
-        DMatrix.dMultiply0(pos, botRot, geomPosOffset);
-        pos.add(botPos);
-    }
 
 }

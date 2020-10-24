@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/Controller/Controller.iml" filepath="$PROJECT_DIR$/Controller/Controller.iml" />
+      <module fileurl="file://$PROJECT_DIR$/ODE4J/ODE4J.iml" filepath="$PROJECT_DIR$/ODE4J/ODE4J.iml" />
       <module fileurl="file://$PROJECT_DIR$/TeamCode/TeamCode.iml" filepath="$PROJECT_DIR$/TeamCode/TeamCode.iml" />
       <module fileurl="file://$PROJECT_DIR$/virtual_robot.iml" filepath="$PROJECT_DIR$/virtual_robot.iml" />
     </modules>

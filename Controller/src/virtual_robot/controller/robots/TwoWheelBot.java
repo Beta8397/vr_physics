@@ -3,14 +3,12 @@ package virtual_robot.controller.robots;
 import com.qualcomm.hardware.bosch.BNO055IMU;
 import com.qualcomm.hardware.bosch.BNO055IMUImpl;
 import com.qualcomm.robotcore.hardware.*;
-import javafx.fxml.FXML;
 import javafx.geometry.Point3D;
 import javafx.scene.Group;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.Box;
 import javafx.scene.shape.Cylinder;
-import javafx.scene.shape.Rectangle;
 import javafx.scene.transform.Rotate;
 import javafx.scene.transform.Translate;
 import odefx.CBits;
@@ -24,7 +22,6 @@ import org.ode4j.math.DVector3;
 import org.ode4j.math.DVector3C;
 import org.ode4j.ode.*;
 import util3d.Util3D;
-import virtual_robot.controller.BotConfig;
 import virtual_robot.controller.VirtualBot;
 import virtual_robot.controller.VirtualRobotController;
 import virtual_robot.util.AngleUtils;
@@ -38,7 +35,7 @@ import static org.ode4j.ode.OdeConstants.dContactBounce;
  *
  * TwoWheelBot is the controller class for the "two_wheel_bot.fxml" markup file.
  */
-@BotConfig(name = "Two Wheel Bot")
+//@BotConfig(name = "Two Wheel Bot")
 public class TwoWheelBot extends VirtualBot {
 
     private final float TOTAL_MASS = 15000;  //mg
@@ -239,7 +236,7 @@ public class TwoWheelBot extends VirtualBot {
         //the chassis.
         DWorld world = controller.getWorld();
         fxBody = FxBody.newInstance(world, botSpace);
-        DBody chassisBody = fxBody.getBody();
+        DBody chassisBody = fxBody;
         DMass chassisMass = OdeHelper.createMass();
         chassisMass.setMass(TOTAL_MASS);
         chassisMass.setI(new DMatrix3(TOTAL_Z_INERTIA, 0, 0, 0, TOTAL_Z_INERTIA, 0, 0, 0, TOTAL_Z_INERTIA));

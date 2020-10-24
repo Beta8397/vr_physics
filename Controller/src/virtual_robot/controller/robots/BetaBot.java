@@ -240,6 +240,7 @@ public class BetaBot extends VirtualBot {
         DVector3 force = deltaPos.reSub(vel.reScale(t)).reScale(2.0 * TOTAL_MASS / tSqr);   //Calculate net force required to achieve the tentative final position
         double angVel = fxBody.getAngularVel().get2();                                      //Angular speed at the beginning of this step
         float torque = (float)(2.0 * TOTAL_Z_INERTIA * (dHeading - angVel*t)/tSqr);         //Calculate net torque required to achieve the tentative final heading
+        System.out.printf("DH = %.12f  AngVel = %.5f  \n\n", dHeading, angVel);
 
         //Convert the tentative total force to the ROBOT COORDINATE system
 
@@ -324,6 +325,7 @@ public class BetaBot extends VirtualBot {
 
         fxBody.addForce(force);
         fxBody.addTorque(new DVector3(0, 0, frictionForces.get(2)));
+        System.out.println("Added torque: " + frictionForces.get(2));
 
         /**
          * Update state of robot accessories
@@ -381,7 +383,7 @@ public class BetaBot extends VirtualBot {
 
 
     /**
-     * Set up FxBody as a single DBody with compound geometry. Interaction between robot components is
+     * Set up FxBody2 as a single DBody with compound geometry. Interaction between robot components is
      * kinematic, accomplished by changing the offsets of the various DGeom objects belonging to the DBody.
      *
      * Disadvantage: Contact joints between the component DGeoms and external objects are between the DBody objects,
@@ -393,13 +395,13 @@ public class BetaBot extends VirtualBot {
      */
     protected void setUpFxBody(){
 
-        //Create new FxBody object to represent the chassis. This will contain the DBody (for physics sim),
+        //Create new FxBody2 object to represent the chassis. This will contain the DBody (for physics sim),
         //a Group object for display, and multiple DGeom objects (for collision handling). It will
-        //also have children--these will be other FxBody objects that represent robot components other than
+        //also have children--these will be other FxBody2 objects that represent robot components other than
         //the chassis.
         DWorld world = controller.getWorld();
         fxBody = FxBody.newInstance(world, botSpace);
-        DBody chassisBody = fxBody.getBody();
+        DBody chassisBody = fxBody;
         DMass chassisMass = OdeHelper.createMass();
         chassisMass.setMass(TOTAL_MASS);
         chassisMass.setI(new DMatrix3(TOTAL_Z_INERTIA, 0, 0, 0, TOTAL_Z_INERTIA, 0, 0, 0, TOTAL_Z_INERTIA));
@@ -787,10 +789,10 @@ public class BetaBot extends VirtualBot {
              * collisions when doing the next iteration of robot kinematics (i.e., call to updateState).
              */
             DJoint.DJointFeedback fb = new DJoint.DJointFeedback();
-            if (c.getBody(0) == fxBody.getBody()) {
+            if (c.getBody(0) == fxBody) {
                 c.setFeedback(fb);
                 feedBackList.add(new FeedBack(fb, 0));
-            } else if (c.getBody(1) == fxBody.getBody()){
+            } else if (c.getBody(1) == fxBody){
                 c.setFeedback(fb);
                 feedBackList.add(new FeedBack(fb, 1));
             }

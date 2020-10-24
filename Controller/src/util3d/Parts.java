@@ -6,6 +6,8 @@ import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.Box;
 import javafx.scene.shape.Cylinder;
+import javafx.scene.shape.Mesh;
+import javafx.scene.shape.MeshView;
 import javafx.scene.transform.Rotate;
 import javafx.scene.transform.Translate;
 import org.ode4j.ode.DGeom;
@@ -141,6 +143,33 @@ public class Parts {
                 bridgeStand1, bridgeStand2, bridgeStand3, bridgeStand4);
 
         return group;
+    }
+
+    /**
+     * Create a MeshView object that represents a ring for the Ultimate Goal competition
+     * @return
+     */
+    public static MeshView ringView(){
+        PhongMaterial orangeMat = new PhongMaterial(Color.ORANGE);
+        Mesh ringMesh = Util3D.getParametricMesh(0, 2 * Math.PI, 0, -2 * Math.PI, 20, 10, true, true, new Util3D.Param3DEqn() {
+            @Override
+            public float x(float s, float t) {
+                return (float)Math.cos(s) * (5 + 1.25f * (float)Math.cos(t));
+            }
+
+            @Override
+            public float y(float s, float t) {
+                return (float)Math.sin(s) * (5 + 1.25f * (float)Math.cos(t));
+            }
+
+            @Override
+            public float z(float s, float t) {
+                return (float) (float)Math.sin(t);
+            }
+        });
+        MeshView ringView = new MeshView(ringMesh);
+        ringView.setMaterial(orangeMat);
+        return ringView;
     }
 
 

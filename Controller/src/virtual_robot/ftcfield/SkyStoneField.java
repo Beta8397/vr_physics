@@ -15,7 +15,6 @@ import odefx.CBits;
 import odefx.FxBody;
 import odefx.FxBodyHelper;
 import org.ode4j.math.DMatrix3;
-import org.ode4j.math.DMatrix3C;
 import org.ode4j.math.DVector3C;
 import org.ode4j.ode.*;
 import util3d.ClosedMeshCreator;
@@ -31,6 +30,8 @@ import static org.ode4j.ode.OdeConstants.dContactBounce;
 
 public class SkyStoneField extends FtcField {
 
+    private static SkyStoneField skyStoneFieldInstance = null;
+
     private final double HALF_FIELD_WIDTH;
     private final Image backgroundImage = Config.BACKGROUND;
 
@@ -40,7 +41,22 @@ public class SkyStoneField extends FtcField {
 
     private DMass foundationMass;
 
-    public SkyStoneField(Group group, DWorld world, DSpace space){
+    public static SkyStoneField getInstance(){
+        if (skyStoneFieldInstance == null){
+            throw new IllegalStateException("SkyStone Field Instance has not been created yet");
+        } else {
+            return skyStoneFieldInstance;
+        }
+    }
+
+    public static SkyStoneField getInstance(Group group, DWorld world, DSpace space){
+        if (skyStoneFieldInstance == null) {
+            skyStoneFieldInstance = new SkyStoneField(group, world, space);
+        }
+        return skyStoneFieldInstance;
+    }
+
+    private SkyStoneField(Group group, DWorld world, DSpace space){
         super(group, world, space);
         HALF_FIELD_WIDTH = VirtualRobotController.HALF_FIELD_WIDTH;
     }

@@ -24,6 +24,7 @@ This product includes:
     Javassist software, Copyright (c) 1999-2019, Shigeru Chiba, Licensed under Apache License, Version 2.0 (License is attached)
    
     Ode4j, Copyright (c) 2009-2017 Tilmann Zaeschke, Licensed under BSD 3-clause License (License is attached)
+          NOTE: The DxWorld.java and DxBody.java files in Ode4j have been modified for use in this project.
    
 Ode4j contains Java ports of:
   
