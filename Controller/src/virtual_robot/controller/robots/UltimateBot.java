@@ -2,6 +2,7 @@ package virtual_robot.controller.robots;
 
 import com.qualcomm.hardware.bosch.BNO055IMUImpl;
 import com.qualcomm.robotcore.hardware.*;
+import com.qualcomm.robotcore.hardware.configuration.MotorType;
 import javafx.application.Platform;
 import javafx.geometry.Point3D;
 import javafx.scene.Group;
@@ -91,6 +92,8 @@ public class UltimateBot extends VirtualBot {
     @Override
     public void init(){
         super.init();
+        hardwareMap.setActive(true);
+
         motors = new DcMotorImpl[]{
                 (DcMotorImpl)hardwareMap.dcMotor.get("back_left_motor"),
                 (DcMotorImpl)hardwareMap.dcMotor.get("front_left_motor"),
@@ -111,6 +114,8 @@ public class UltimateBot extends VirtualBot {
         shooterElevServo = (ServoImpl)hardwareMap.servo.get("shooter_elev_servo");
         shooterTrigServo = (ServoImpl)hardwareMap.servo.get("shooter_trig_servo");
         shooterMotor = (DcMotorImpl)hardwareMap.get(DcMotor.class, "shooter_motor");
+        hardwareMap.setActive(false);
+
         wheelCircumference = Math.PI * botWidth / 4.5;
         interWheelWidth = botWidth * 8.0 / 9.0;
         interWheelLength = botWidth * 7.0 / 9.0;

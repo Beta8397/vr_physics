@@ -40,7 +40,7 @@ import java.util.*;
 /**
  * HardwareMap provides access to the virtual robot hardware
  */
-public class HardwareMap {
+public class HardwareMap implements Iterable<HardwareDevice>{
 
     /**
      * Map of all DcMotor devices in this HardwareMap.
@@ -72,7 +72,19 @@ public class HardwareMap {
      */
     private Map<String, List<HardwareDevice>> allDevicesMap = new HashMap<>(15);
 
-    private final Object lock = new Object();
+    /**
+     *  List of all hardware devices in this HardwareMap
+     */
+    private List<HardwareDevice> allDevicesList = new ArrayList<>();
+
+    /**
+     * INTERNAL USE ONLY!!!
+     * This is needed to prevent users from obtaining hardware references before the INIT button is pressed.
+     * i.e., references to hardware should be obtained in the opmode.init(), opmode.loop(), or linearopmode.runopmode()
+     * methods.
+     */
+    private boolean active = false;
+    public void setActive(boolean isActive){ active = isActive; }
 
     /**
      * Add a device to the HardwareMap
@@ -87,6 +99,7 @@ public class HardwareMap {
             allDevicesMap.put(deviceName, list);
         }
         list.add(device);
+        allDevicesList.add(device);
         if (device instanceof DcMotor) dcMotor.put(deviceName, (DcMotor)device);
         if (device instanceof ColorSensor) colorSensor.put(deviceName, (ColorSensor)device);
         if (device instanceof GyroSensor) gyroSensor.put(deviceName, (GyroSensor)device);
@@ -111,6 +124,10 @@ public class HardwareMap {
 
 
     private synchronized <T> T tryGet(Class<? extends T> classOrInterface, String deviceName){
+        if (!active){
+            System.out.println("ERROR: Cannot obtain references to hardware before INIT button is pressed.");
+            return null;
+        }
         deviceName = deviceName.trim();
         List<HardwareDevice> list = allDevicesMap.get(deviceName);
         if (list != null) {
@@ -119,6 +136,21 @@ public class HardwareMap {
             }
         }
         return null;
+    }
+
+    /**
+     * Returns all the devices which are instances of the indicated class or interface.
+     * @param classOrInterface the class or interface indicating the type of the device object to be retrieved
+     * @return all the devices registered in the map which are instances of classOrInterface
+     */
+    public <T> List<T> getAll(Class<? extends T> classOrInterface) {
+        List<T> result = new ArrayList<T>();
+        for (HardwareDevice device : this) {
+            if (classOrInterface.isInstance(device)) {
+                result.add(classOrInterface.cast(device));
+            }
+        }
+        return result;
     }
 
     /**
@@ -137,6 +169,11 @@ public class HardwareMap {
             }
         }
         return result;
+    }
+
+    @Override
+    public Iterator<HardwareDevice> iterator() {
+        return allDevicesList.iterator();
     }
 
     /**
@@ -158,6 +195,10 @@ public class HardwareMap {
          * @return
          */
         public synchronized DEVICE_TYPE get(String deviceName){
+            if (!active){
+                System.out.println("ERROR: Cannot obtain references to hardware before INIT button is pressed.");
+                return null;
+            }
             deviceName = deviceName.trim();
             DEVICE_TYPE result = map.get(deviceName);
             if (result == null) throw new IllegalArgumentException(

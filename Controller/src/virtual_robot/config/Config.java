@@ -31,4 +31,14 @@ public class Config {
      * Currently active game
      */
     public static final Game GAME = Game.ULTIMATE_GOAL;
+
+    /*
+     * Behavior of virtual gamepad analog controls when they are released.
+     *
+     * false -> controls "snap back" to zero
+     * true -> controls hold their position
+     *
+     * Either of these behaviors can be overridden by pressing SHIFT or ALT when control is released.
+     */
+    public static final boolean HOLD_CONTROLS_BY_DEFAULT = true;
 }

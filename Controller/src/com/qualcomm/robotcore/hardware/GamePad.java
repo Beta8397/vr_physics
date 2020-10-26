@@ -35,14 +35,14 @@ Modified by Virtual_Robot contributors
 package com.qualcomm.robotcore.hardware;
 
 import com.studiohartman.jamepad.ControllerState;
-import virtual_robot.controller.VirtualGamePadController;
+import virtual_robot.controller.VirtualGamepadController;
 
 /**
  * Represents the GamePad.
  *
  * Note: the fields in the class are all public, but they should not be changed from the OpMode code.
  */
-public class GamePad {
+public class Gamepad {
 
     public volatile boolean x = false;
     public volatile boolean y = false;
@@ -126,7 +126,7 @@ public class GamePad {
         right_trigger = setWithDeadzone(state.rightTrigger);
     }
 
-    public void update(VirtualGamePadController.ControllerState state){
+    public void update(VirtualGamepadController.ControllerState state){
         x = state.x;
         y = state.y;
         a = state.a;
@@ -135,19 +135,19 @@ public class GamePad {
         left_stick_y = setWithDeadzone(state.leftStickY);
         right_stick_x = setWithDeadzone(state.rightStickX);
         right_stick_y = setWithDeadzone(state.rightStickY);
-        dpad_up = false;
-        dpad_down = false;
-        dpad_left = false;
-        dpad_right = false;
+        dpad_up = state.dpad_up;
+        dpad_down = state.dpad_down;
+        dpad_left = state.dpad_left;
+        dpad_right = state.dpad_right;
         back = false;
         guide = false;
         start = false;
-        left_bumper = false;
-        right_bumper = false;
+        left_bumper = state.left_bumper;
+        right_bumper = state.right_bumper;
         left_stick_button = false;
         right_stick_button = false;
-        left_trigger = 0;
-        right_trigger = 0;
+        left_trigger = state.left_trigger;
+        right_trigger = state.right_trigger;
     }
 
 }
