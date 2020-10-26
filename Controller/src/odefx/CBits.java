@@ -18,7 +18,7 @@ public class CBits {
     public static final long FOUNDATIONS = 0x20;
 
     //Ultimate Goal Game Elements
-    public static final long RINGS = 0x10;
+    public static final long RINGS = 0x40;
     public static final long WOBBLES = 0x20;
 
     //General Bot

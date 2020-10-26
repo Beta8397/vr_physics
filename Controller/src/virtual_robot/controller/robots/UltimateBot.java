@@ -9,6 +9,7 @@ import javafx.scene.Group;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.Cylinder;
+import javafx.scene.shape.Mesh;
 import javafx.scene.shape.TriangleMesh;
 import javafx.scene.transform.Rotate;
 import javafx.scene.transform.Translate;
@@ -29,6 +30,7 @@ import org.ode4j.math.DVector3C;
 import org.ode4j.ode.*;
 import util3d.Parts;
 import util3d.Util3D;
+import virtual_robot.config.Config;
 import virtual_robot.controller.BotConfig;
 import virtual_robot.controller.VirtualBot;
 import virtual_robot.controller.VirtualRobotController;
@@ -137,15 +139,17 @@ public class UltimateBot extends VirtualBot {
 
         M_ForceRobotToWheel = M_ForceWheelToRobot.inverted();
 
-        List<FxBody> ultimateGoalFieldRings = UltimateGoalField.getInstance().getRings();
-        for (int i=4; i<7; i++){
-            FxBody ring = ultimateGoalFieldRings.get(i);
-            ring.getGeom("ring").disable();
-            ring.disable();
-            if (subSceneGroup.getChildren().contains(ring.getNode())) {
-                subSceneGroup.getChildren().remove(ring.getNode());
+        if (Config.GAME == Config.Game.ULTIMATE_GOAL) {
+            List<FxBody> ultimateGoalFieldRings = UltimateGoalField.getInstance().getRings();
+            for (int i = 4; i < 7; i++) {
+                FxBody ring = ultimateGoalFieldRings.get(i);
+                ring.getGeom("ring").disable();
+                ring.disable();
+                if (subSceneGroup.getChildren().contains(ring.getNode())) {
+                    subSceneGroup.getChildren().remove(ring.getNode());
+                }
+                storedRings.add(ring);
             }
-            storedRings.add(ring);
         }
 
     }
@@ -635,7 +639,26 @@ public class UltimateBot extends VirtualBot {
         botGroup.getChildren().add(shooter);
         shooter.updateGeomOffsets();
 
-        TriangleMesh backWedgeMesh = Util3D.PolygonTubeMesh(2*pltXOffset1, new float[]{3, -3, 3, 3, -3, 3});
+//        TriangleMesh backWedgeMesh = Util3D.PolygonTubeMesh(2*pltXOffset1, new float[]{3, -3, 3, 3, -3, 3});
+        TriangleMesh backWedgeMesh = Util3D.getParametricMesh(0, 18, -1, 1,
+                18, 20, false, false, new Util3D.Param3DEqn() {
+            @Override
+            public float x(float s, float t) {
+                int i = (int)s;
+                return i<=6? 3 : i<=12? 9-i : i-15;
+            }
+
+            @Override
+            public float y(float s, float t) {
+                int i = (int)s;
+                return i<=6? i-3 : i<=12? 3 : 15-i;
+            }
+
+            @Override
+            public float z(float s, float t) {
+                return pltXOffset1*t;
+            }
+        });
         MeshViewWithDGeom backWedge = new MeshViewWithDGeom(backWedgeMesh, fxBody);
         backWedge.getTransforms().addAll(new Translate(0, -15, -1), new Rotate(90, Rotate.Y_AXIS));
         backWedge.updateGeomOffset();

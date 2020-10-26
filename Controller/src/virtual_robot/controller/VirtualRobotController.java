@@ -166,6 +166,7 @@ public class VirtualRobotController {
     boolean getOpModeInitialized(){ return opModeInitialized; }
 
     public void initialize() {
+
         setupODE();
         setUp3DSubScene();
 

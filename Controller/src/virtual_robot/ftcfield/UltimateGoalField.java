@@ -166,7 +166,7 @@ public class UltimateGoalField extends FtcField {
                 ring.getGeom("ring").disable();
                 ring.disable();
             }
-            ring.setCategoryBits(CBits.STONES);
+            ring.setCategoryBits(CBits.RINGS);
             ring.setCollideBits(0xFF);
             rings.add(ring);
         }
