@@ -12,7 +12,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.*;
  *
  */
 @TeleOp(name = "beta bot demo", group = "beta bot")
-@Disabled
+//@Disabled
 public class BetaBotDemo extends LinearOpMode {
 
     public void runOpMode(){

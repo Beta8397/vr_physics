@@ -90,7 +90,8 @@ public class UltimateBotDemo extends LinearOpMode {
             if (gamepad1.a) shooterTrigServo.setPosition(1);
             else shooterTrigServo.setPosition(0);
 
-            shooterElevServo.setPosition( 0.5 * (1 + gamepad1.right_stick_y));
+            double shooterElev = 0.5 * (1 + gamepad1.right_stick_y);
+            shooterElevServo.setPosition(shooterElev);
 
             telemetry.addData("Gamepad 1 left stick controls fwd/strafe.","");
             telemetry.addData("Gamepad 1 triggers control turn.","");
@@ -104,6 +105,7 @@ public class UltimateBotDemo extends LinearOpMode {
             telemetry.addData("Back Distance", " %.1f", backDistance.getDistance(DistanceUnit.CM));
             telemetry.addData("Encoders"," %d %d %d %d", m1.getCurrentPosition(), m2.getCurrentPosition(),
                     m3.getCurrentPosition(), m4.getCurrentPosition());
+            telemetry.addData("ShooterElev", shooterElev);
             telemetry.update();
         }
         m1.setPower(0);

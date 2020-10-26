@@ -625,6 +625,65 @@ public class Util3D {
         return polygonView(reversed, material, xyPoints);
     }
 
+    public static TriangleMesh PolygonTubeMesh(float depth, float[] xyPoints){
+
+        int numXYPts = xyPoints.length/2;
+        int numSidePts = numXYPts + 1;
+
+        float[] sidePts = new float[numSidePts*6];
+        float[] sideTexCoords = new float[numSidePts*4];
+
+        float pathLength = 0.0f;
+        for (int i=0; i<numXYPts; i++){
+            float x0 = xyPoints[2*i];
+            float y0 = xyPoints[2*i+1];
+            float x1 = i<numXYPts-1 ? xyPoints[2*i+2] : xyPoints[0];
+            float y1 = i<numXYPts-1 ? xyPoints[2*i+3] : xyPoints[1];
+            pathLength += (float)Math.hypot(x1-x0, y1-y0);
+        }
+
+        float path = 0.0f;
+
+        for (int i=0; i<numXYPts; i++){
+            sidePts[6*i] = sidePts[6*i+3] = xyPoints[2*i];
+            sidePts[6*i+1] = sidePts[6*i+4] = xyPoints[2*i+1];
+            sidePts[6*i+2] = depth/2.0f;
+            sidePts[6*i+5] = -depth/2.0f;
+            sideTexCoords[4*i] = sideTexCoords[4*i+2] = path/pathLength;
+            sideTexCoords[4*i+1] = 1;
+            sideTexCoords[4*i+3] = 0;
+            if (i<numXYPts-1) path += (float)Math.hypot(xyPoints[2*i+2] - xyPoints[2*i], xyPoints[2*i+3] - xyPoints[2*i+1]);
+        }
+
+        sidePts[6*numXYPts] = sidePts[6*numXYPts+3] = xyPoints[0];
+        sidePts[6*numXYPts+1] = sidePts[6*numXYPts+4] = xyPoints[1];
+        sidePts[6*numXYPts+2] = depth/2.0f;
+        sidePts[6*numXYPts+5] = -depth/2.0f;
+        sideTexCoords[4*numXYPts] = sideTexCoords[4*numXYPts+2] = 1;
+        sideTexCoords[4*numXYPts+1] = 1;
+        sideTexCoords[4*numXYPts+3] = 0;
+
+        int[] sideFaces = new int[numXYPts * 12];
+
+        for (int i=0; i<numXYPts; i++){
+            sideFaces[i*12] = sideFaces[i*12+1] = 2*i;
+            sideFaces[i*12+2] = sideFaces[i*12+3] = 2*i+1;
+            sideFaces[i*12+4] = sideFaces[i*12+5] = 2*i+3;
+            sideFaces[i*12+6] = sideFaces[i*12+7] = 2*i+3;
+            sideFaces[i*12+8] = sideFaces[i*12+9] = 2*i+2;
+            sideFaces[i*12+10] = sideFaces[i*12+11] = 2*i;
+        }
+
+        TriangleMesh sideMesh = new TriangleMesh();
+        sideMesh.getPoints().addAll(sidePts);
+        sideMesh.getTexCoords().addAll(sideTexCoords);
+        sideMesh.getFaces().addAll(sideFaces);
+        sideMesh.setVertexFormat(VertexFormat.POINT_TEXCOORD);
+
+        return sideMesh;
+
+    }
+
     public static Group polygonBox(float depth, float[] xyPoints, PhongMaterial... materials){
 
         int numXYPts = xyPoints.length/2;

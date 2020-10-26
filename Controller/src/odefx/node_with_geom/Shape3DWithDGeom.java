@@ -64,6 +64,6 @@ public interface Shape3DWithDGeom {
      * Update the Total offset of the DGeom within its FxBody. This no-parameter method would be used if the
      * Shape3D is not nested within any Group(s).
      */
-    default void updateGeomOffset(){updateGeomOffset(null);}
+    default void updateGeomOffset(){updateGeomOffset(new Translate(0,0,0));}
 
 }

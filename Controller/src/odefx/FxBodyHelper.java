@@ -142,6 +142,7 @@ public class FxBodyHelper {
                         tData[8], tData[9], tData[10]);
                 dGeom.setRotation(dRotMatrix);
             }
+            list.add(dGeom);
         }
 
         return list;
