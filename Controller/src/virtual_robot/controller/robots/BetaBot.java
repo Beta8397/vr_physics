@@ -20,6 +20,7 @@ import odefx.node_with_geom.GroupWithDGeoms;
 import org.firstinspires.ftc.robotcore.external.matrices.GeneralMatrixF;
 import org.firstinspires.ftc.robotcore.external.matrices.MatrixF;
 import org.firstinspires.ftc.robotcore.external.matrices.VectorF;
+import org.firstinspires.ftc.teamcode.i2c.BNO055EnhancedImpl;
 import org.ode4j.math.*;
 import org.ode4j.ode.*;
 import util3d.Parts;
@@ -45,10 +46,10 @@ public class BetaBot extends VirtualBot {
     //Max possible force (in Robot-X direction) at any wheel (each wheel gets 1/4 of robot weight)
     private final float MAX_WHEEL_X_FORCE = TOTAL_MASS * GRAVITY * FIELD_FRICTION_COEFF / (4.0f * (float)Math.sqrt(2));
 
-    public final MotorType motorType = MotorType.Neverest40;
+    public final MotorType motorType = MotorType.NeverestOrbital20;
     private DcMotorImpl[] motors = null;
     private DcMotorImpl liftMotor = null;
-    private BNO055IMUImpl imu = null;
+    private BNO055EnhancedImpl imu = null;
     private VirtualRobotController.ColorSensorImpl colorSensor = null;
     private ServoImpl handServo = null;
     private CRServoImpl sliderCRServo = null;
@@ -108,7 +109,7 @@ public class BetaBot extends VirtualBot {
                 hardwareMap.get(VirtualRobotController.DistanceSensorImpl.class, "back_distance"),
                 hardwareMap.get(VirtualRobotController.DistanceSensorImpl.class, "right_distance")
         };
-        imu = hardwareMap.get(BNO055IMUImpl.class, "imu");
+        imu = hardwareMap.get(BNO055EnhancedImpl.class, "imu");
         colorSensor = (VirtualRobotController.ColorSensorImpl)hardwareMap.colorSensor.get("color_sensor");
         handServo = (ServoImpl)hardwareMap.servo.get("hand_servo");
         sliderCRServo = (CRServoImpl)hardwareMap.crservo.get("slider_crservo");
@@ -146,7 +147,7 @@ public class BetaBot extends VirtualBot {
         hardwareMap.put("right_intake_motor", new DcMotorImpl(MotorType.Neverest40, false, false));
         String[] distNames = new String[]{"front_distance", "left_distance", "back_distance", "right_distance"};
         for (String name: distNames) hardwareMap.put(name, controller.new DistanceSensorImpl());
-        hardwareMap.put("imu", new BNO055IMUImpl(this, 10));
+        hardwareMap.put("imu", new BNO055EnhancedImpl(this, 10));
         hardwareMap.put("color_sensor", controller.new ColorSensorImpl());
         hardwareMap.put("hand_servo", new ServoImpl());
         hardwareMap.put("slider_crservo", new CRServoImpl(720));

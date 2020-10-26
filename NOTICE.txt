@@ -25,6 +25,8 @@ This product includes:
    
     Ode4j, Copyright (c) 2009-2017 Tilmann Zaeschke, Licensed under BSD 3-clause License (License is attached)
           NOTE: The DxWorld.java and DxBody.java files in Ode4j have been modified for use in this project.
+
+    Apache Commons Math Library (c) 2001-2016 The Apache Software Foundation, Licenced under the Apache License, Version 2.0 (License is attached)
    
 Ode4j contains Java ports of:
   
