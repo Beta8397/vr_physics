@@ -131,13 +131,9 @@ public class UltimateGoalField extends FtcField {
             if (i<2) x *= -1;
             wobbles[i].setPosition(x, -120, 3);
             subSceneGroup.getChildren().add(wobbleGroup);
-            wobbles[i].setDamping(0.1, 0.1);
+            wobbles[i].setDamping(0.05, 0.05);
             wobbles[i].updateNodeDisplay();
             wobbles[i].setCategoryBits(CBits.WOBBLES);
-
-            System.out.println("Damping: Lin " + wobbles[i].getLinearDamping() + "  Ang " + wobbles[i].getAngularDamping());
-            System.out.println("Damping Threshold: Lin" + wobbles[i].getLinearDampingThreshold() + "  Ang " + wobbles[i].getAngularDampingThreshold());
-            System.out.println();
         }
 
 
