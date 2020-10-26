@@ -131,6 +131,7 @@ public class UltimateGoalField extends FtcField {
             if (i<2) x *= -1;
             wobbles[i].setPosition(x, -120, 3);
             subSceneGroup.getChildren().add(wobbleGroup);
+            wobbles[i].setDamping(0.05, 0.05);
             wobbles[i].updateNodeDisplay();
             wobbles[i].setCategoryBits(CBits.WOBBLES);
         }
@@ -165,7 +166,7 @@ public class UltimateGoalField extends FtcField {
                 ring.getGeom("ring").disable();
                 ring.disable();
             }
-            ring.setCategoryBits(CBits.STONES);
+            ring.setCategoryBits(CBits.RINGS);
             ring.setCollideBits(0xFF);
             rings.add(ring);
         }

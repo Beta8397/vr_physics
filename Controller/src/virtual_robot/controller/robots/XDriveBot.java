@@ -1,21 +1,18 @@
 package virtual_robot.controller.robots;
 
 import com.qualcomm.robotcore.hardware.*;
-import javafx.fxml.FXML;
+import com.qualcomm.robotcore.hardware.configuration.MotorType;
 import javafx.geometry.Point3D;
 import javafx.scene.Group;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.Box;
 import javafx.scene.shape.Cylinder;
-import javafx.scene.shape.Rectangle;
 import javafx.scene.transform.Rotate;
 import com.qualcomm.hardware.bosch.BNO055IMUImpl;
 import javafx.scene.transform.Translate;
-import virtual_robot.controller.BotConfig;
 import virtual_robot.controller.VirtualBot;
 import virtual_robot.controller.VirtualRobotController;
-import virtual_robot.util.AngleUtils;
 
 /**
  * For internal use only. Represents a robot with four omni wheels, color sensor, four distance sensors,

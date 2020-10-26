@@ -12,6 +12,8 @@ import javafx.event.EventHandler;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.*;
 import javafx.scene.control.*;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseDragEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
@@ -33,10 +35,10 @@ import javafx.scene.paint.Color;
 import com.qualcomm.hardware.bosch.BNO055IMU;
 import com.qualcomm.robotcore.hardware.DcMotorImpl;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
-import virtual_robot.controller.robots.BetaBot;
 import virtual_robot.ftcfield.FtcField;
 import virtual_robot.ftcfield.SkyStoneField;
 import virtual_robot.ftcfield.UltimateGoalField;
+import virtual_robot.keyboard.KeyState;
 
 import java.io.IOException;
 import java.lang.annotation.Annotation;
@@ -97,12 +99,12 @@ public class VirtualRobotController {
     //Virtual Hardware
     private HardwareMap hardwareMap = null;
     private VirtualBot bot = null;
-    GamePad gamePad1 = new GamePad();
-    GamePad gamePad2 = new GamePad();
+    Gamepad gamePad1 = new Gamepad();
+    Gamepad gamePad2 = new Gamepad();
     GamePadHelper gamePadHelper = null;
     ScheduledExecutorService gamePadExecutorService = Executors.newSingleThreadScheduledExecutor();
 
-    VirtualGamePadController virtualGamePadController = null;
+    VirtualGamepadController virtualGamePadController = null;
 
     //Background Image and Field
     private final Image backgroundImage = Config.BACKGROUND;
@@ -158,9 +160,13 @@ public class VirtualRobotController {
         }
     };
 
+    //KeyState
+    private KeyState keyState = new KeyState();
+
     boolean getOpModeInitialized(){ return opModeInitialized; }
 
     public void initialize() {
+
         setupODE();
         setUp3DSubScene();
 
@@ -448,9 +454,11 @@ public class VirtualRobotController {
             try{
                 opModeThread.join(500);
             } catch(InterruptedException exc) {
-                Thread.currentThread().interrupt();
+                opModeThread.interrupt();
             }
             if (opModeThread.isAlive()) System.out.println("OpMode Thread Failed to Terminate.");
+
+            bot.getHardwareMap().setActive(false);
             bot.powerDownAndReset();
             if (Config.USE_VIRTUAL_GAMEPAD) virtualGamePadController.resetGamePad();
             initializeTelemetryTextArea();
@@ -502,6 +510,10 @@ public class VirtualRobotController {
     private void runOpModeAndCleanUp(){
 
         try {
+            //Activate the hardware map, so that calls to "get" on the hardware map itself, and on dcMotor, etc,
+            //will return hardware objects
+            bot.getHardwareMap().setActive(true);
+
             //For regular opMode, run user-defined init() method. For Linear opMode, init() starts the execution of
             //runOpMode on a helper thread.
             opMode.init();
@@ -551,6 +563,7 @@ public class VirtualRobotController {
             System.out.println(e.getLocalizedMessage());
         }
 
+        bot.getHardwareMap().setActive(false);
         bot.powerDownAndReset();
         if (!displayExecutorService.isShutdown()) displayExecutorService.shutdown();
         if (!physicsExecutorService.isShutdown()) physicsExecutorService.shutdown();
@@ -579,8 +592,6 @@ public class VirtualRobotController {
         }
         return true;
     }
-
-
 
     private void updateTelemetryDisplay(){
         if (telemetryTextChanged && telemetryText != null) txtTelemetry.setText(telemetryText);
@@ -627,7 +638,30 @@ public class VirtualRobotController {
             sb.append("\n Distance Sensors:");
             for (String distance : distanceSensors) sb.append("\n   " + distance);
         }
+        Set<String> digitalChannels = hardwareMap.keySet(DigitalChannel.class);
+        if (!digitalChannels.isEmpty()) {
+            sb.append("\n Digital Sensors:");
+            for (String digitalChannel : digitalChannels) sb.append("\n   " + digitalChannel);
+        }
+        Set<String> analogInputs = hardwareMap.keySet(AnalogInput.class);
+        if (!analogInputs.isEmpty()) {
+            sb.append("\n Analog Sensors:");
+            for (String analogInput : analogInputs) sb.append("\n   " + analogInput);
+        }
         txtTelemetry.setText(sb.toString());
+    }
+
+    @FXML
+    private void handleKeyEvents(KeyEvent e){
+        if (e.getEventType() == KeyEvent.KEY_PRESSED){
+            keyState.set(e.getCode(), true);
+        } else if (e.getEventType() == KeyEvent.KEY_RELEASED){
+            keyState.set(e.getCode(), false);
+        }
+    }
+
+    public boolean getKeyState(KeyCode code){
+        return keyState.get(code);
     }
 
     public class ColorSensorImpl implements ColorSensor {
@@ -726,8 +760,8 @@ public class VirtualRobotController {
      */
     public class OpModeBase {
         protected final HardwareMap hardwareMap;
-        protected final GamePad gamepad1;
-        protected final GamePad gamepad2;
+        protected final Gamepad gamepad1;
+        protected final Gamepad gamepad2;
         protected final Telemetry telemetry;
 
         public OpModeBase() {
@@ -765,14 +799,15 @@ public class VirtualRobotController {
             this.data.append(caption + ":" + data.toString() + "\n");
         }
 
-
         /**
          * Replace any data currently displayed on telemetry with all data that has been added since the previous call to
-         * update().
+         * update(). Note: if no data has been added, this method does nothing.
          */
         public void update(){
-            setText(data.toString());
-            data.setLength(0);
+            if (data.length() > 0) {
+                setText(data.toString());
+                data.setLength(0);
+            }
         }
 
         private void setText(String text){
@@ -789,7 +824,7 @@ public class VirtualRobotController {
     public class VirtualGamePadHelper implements GamePadHelper {
 
         public void run() {
-            VirtualGamePadController.ControllerState state = virtualGamePadController.getState();
+            VirtualGamepadController.ControllerState state = virtualGamePadController.getState();
             gamePad1.update(state);
             gamePad2.resetValues();
         }

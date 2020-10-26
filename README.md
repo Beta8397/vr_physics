@@ -1,5 +1,7 @@
 # NEW:  Now using ODE4J (Java port of Open Dynamics Engine) to make the 3D simulator physics based.
 
+Now Updated for Ultimate Goal 2020-21
+
 ![](/readme_image.JPG)
 
 **Some older hardware doesn't support Java FX 3D scenes.**  This runs on several circa 2015-16 Windows 10 and 8 systems
@@ -11,16 +13,18 @@ A 3D simulator to help beginning Java programmers learn to program for FTC Robot
 This is a JavaFX application developed using the (free) IntelliJ IDEA Community Edition IDE. The repository can be downloaded
 and unzipped, then opened with IntelliJ.
 
-Two robot configurations are currently available for the physics-based 3D simulator: BetaBot is a mechanum-wheeled
-robot with a wheeled intake in back and a vertical lift with horizontal slider and grabbing mechanism in front. It
-can be thought of as 18 inches wide. The distance between the centers of the front and back wheels is 14 inches, and
-the distance between the centers of the right and left wheels is 16 inches. Two-wheeled Bot is a robot with one
-drive wheel on each side. The distance between the centers of the wheels is 16 inches. Each robot has a downward-facing
-color sensor in the center of the robot. Each has a BNO055 IMU, as well as distance sensors on all four sides.
-Wheel diameters for both robots are 4 inches.
+Two robot configurations are currently available: BetaBot (for the Skystone game) and UltimateBot (for the Ultimate
+Goal game). Each has four mecanum wheels. Distance between the centers of front and back wheels is 14 inches, and
+distance between the centers of left and right wheels is 16 inches. Each has a downward-facing color sensor at the
+center of the robot, distance sensors on all four sides, and a BNO055 IMU. Wheel diameters for both robots are
+4 inches. Each robot is 18 inches wide.
 
-Programming the interaction between the robot accessories (intake, lift/slide/grabber, arm/grabber) has proved tricky,
-and is a work in progress. It works better for BetaBot than for the Two-wheeled Bot.
+BetaBot has a wheeled intake in back and a vertical lift with horizontal slider and grabbing mechanism in front. The
+lift and intake are powered by DC motors, the slider by a CR Servo, and the grabbing mechanism by a servo.
+
+UltimateBot has a wheeled intake and a ring-shooting mechanism in front. The intake is powered by a DC motor. The
+shooter is powered by a DC motor, with triggering by a servo. The vertical shooting angle is controlled by a servo
+as well.
 
 The field can be thought of as 12 feet wide. The field graphic (currently the Skystone field)
 is obtained from a bitmap (.bmp) image. The color sensor detects the field color beneath the center of the
@@ -71,6 +75,13 @@ To use:
 
 
 LOG OF CHANGES
+
+CHANGES 10/26/2020
+    Added Ultimate Goal game and robot option. Select the game (Skystone or Ultimate Goal) in the Config.java file.
+    Brought code more or less up to date with the current version of virtual_robot (the 2D project).
+
+    NOTE: with Ultimate Goal, the physics engine will occasionally crash due to a problem with collision detection
+    when persistently trying to push the wobble goals against the wall. No bug fix is anticipated for this issue
 
 CHANGES 2/28/2020
     Added Foundations to the SkyStone field.

@@ -18,11 +18,6 @@ public class Config {
     public static final boolean USE_VIRTUAL_GAMEPAD = false;
 
     /**
-     * The image object for the field.
-     */
-    public static final Image BACKGROUND = new Image("/virtual_robot/assets/ultimate_goal_648.bmp");
-
-    /**
      * Enum for the Game
      */
     public enum Game {SKYSTONE, ULTIMATE_GOAL}
@@ -31,4 +26,22 @@ public class Config {
      * Currently active game
      */
     public static final Game GAME = Game.ULTIMATE_GOAL;
+
+    /**
+     * The image object for the field.
+     */
+    public static final Image BACKGROUND = GAME == Game.ULTIMATE_GOAL?
+            new Image("/virtual_robot/assets/ultimate_goal_648.bmp") :
+            new Image("/virtual_robot/assets/skystone_field648.bmp");
+
+
+    /*
+     * Behavior of virtual gamepad analog controls when they are released.
+     *
+     * false -> controls "snap back" to zero
+     * true -> controls hold their position
+     *
+     * Either of these behaviors can be overridden by pressing SHIFT or ALT when control is released.
+     */
+    public static final boolean HOLD_CONTROLS_BY_DEFAULT = true;
 }

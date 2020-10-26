@@ -2,6 +2,7 @@ package virtual_robot.controller.robots;
 
 import com.qualcomm.hardware.bosch.BNO055IMUImpl;
 import com.qualcomm.robotcore.hardware.*;
+import com.qualcomm.robotcore.hardware.configuration.MotorType;
 import javafx.geometry.Point3D;
 import javafx.scene.Group;
 import javafx.scene.Node;
@@ -87,6 +88,8 @@ public class BetaBot extends VirtualBot {
     @Override
     public void init(){
         super.init();
+
+        hardwareMap.setActive(true);
         motors = new DcMotorImpl[]{
                 (DcMotorImpl)hardwareMap.dcMotor.get("back_left_motor"),
                 (DcMotorImpl)hardwareMap.dcMotor.get("front_left_motor"),
@@ -109,6 +112,8 @@ public class BetaBot extends VirtualBot {
         colorSensor = (VirtualRobotController.ColorSensorImpl)hardwareMap.colorSensor.get("color_sensor");
         handServo = (ServoImpl)hardwareMap.servo.get("hand_servo");
         sliderCRServo = (CRServoImpl)hardwareMap.crservo.get("slider_crservo");
+        hardwareMap.setActive(false);
+
         wheelCircumference = Math.PI * botWidth / 4.5;
         interWheelWidth = botWidth * 8.0 / 9.0;
         interWheelLength = botWidth * 7.0 / 9.0;
