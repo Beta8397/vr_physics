@@ -11,6 +11,7 @@ import odefx.FxBody;
 import org.ode4j.math.DMatrix3;
 import org.ode4j.ode.DBody;
 import org.ode4j.ode.DGeom;
+import org.ode4j.ode.DSpace;
 import org.ode4j.ode.OdeHelper;
 
 public class BoxWithDGeom extends Box implements Shape3DWithDGeom {
@@ -18,6 +19,12 @@ public class BoxWithDGeom extends Box implements Shape3DWithDGeom {
     private DGeom dGeom;
     private Rotate relativeGeomRotate = null;
     private Translate relativeGeomTranslate = null;
+
+    public BoxWithDGeom(double lx, double ly, double lz, DSpace space){
+        super(lx, ly, lz);
+        dGeom = OdeHelper.createBox(space, lx, ly, lz);
+        dGeom.setBody(null);
+    }
 
     public BoxWithDGeom(double lx, double ly, double lz, FxBody fb){
         super(lx, ly, lz);
@@ -69,14 +76,18 @@ public class BoxWithDGeom extends Box implements Shape3DWithDGeom {
         Translate nodeRelGeomOffset = this.getRelGeomOffset();
         if (nodeRelGeomOffset != null) transform = transform.createConcatenation(nodeRelGeomOffset);
         if (nodeRelGeomRotate != null) transform = transform.createConcatenation(nodeRelGeomRotate);
-//        if (node instanceof Cylinder) {
-//            transform = transform.createConcatenation(new Rotate(90, new Point3D(1, 0, 0)));
-//        }
         double[] tData = transform.toArray(MatrixType.MT_3D_3x4);
-        dGeom.setOffsetPosition(tData[3], tData[7], tData[11]);
-        DMatrix3 dRotMatrix = new DMatrix3(tData[0], tData[1], tData[2], tData[4], tData[5], tData[6],
-                tData[8], tData[9], tData[10]);
-        dGeom.setOffsetRotation(dRotMatrix);
+        if (dGeom.getBody() != null) {
+            dGeom.setOffsetPosition(tData[3], tData[7], tData[11]);
+            DMatrix3 dRotMatrix = new DMatrix3(tData[0], tData[1], tData[2], tData[4], tData[5], tData[6],
+                    tData[8], tData[9], tData[10]);
+            dGeom.setOffsetRotation(dRotMatrix);
+        } else {
+            dGeom.setPosition(tData[3], tData[7], tData[11]);
+            DMatrix3 dRotMatrix = new DMatrix3(tData[0], tData[1], tData[2], tData[4], tData[5], tData[6],
+                    tData[8], tData[9], tData[10]);
+            dGeom.setRotation(dRotMatrix);
+        }
     }
 
 }

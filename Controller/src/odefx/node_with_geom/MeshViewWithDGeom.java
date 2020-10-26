@@ -1,46 +1,49 @@
 package odefx.node_with_geom;
 
-
 import javafx.collections.ObservableList;
-import javafx.scene.shape.Sphere;
+import javafx.scene.shape.MeshView;
+import javafx.scene.shape.TriangleMesh;
 import javafx.scene.transform.MatrixType;
 import javafx.scene.transform.Rotate;
 import javafx.scene.transform.Transform;
 import javafx.scene.transform.Translate;
 import odefx.FxBody;
+import odefx.FxBodyHelper;
 import org.ode4j.math.DMatrix3;
 import org.ode4j.ode.DBody;
 import org.ode4j.ode.DGeom;
+import org.ode4j.ode.DSpace;
 import org.ode4j.ode.OdeHelper;
 
-public class SphereWithDGeom extends Sphere implements Shape3DWithDGeom {
-    private String name = "SphereWithDGeom";
+public class MeshViewWithDGeom extends MeshView implements Shape3DWithDGeom {
+
+    private String name = "MeshViewWithDGeom";
     private DGeom dGeom;
     private Rotate relativeGeomRotate = null;
     private Translate relativeGeomTranslate = null;
 
-    public SphereWithDGeom(double radius, FxBody fb){
-        super(radius);
-        dGeom = OdeHelper.createSphere(radius);
+    public MeshViewWithDGeom(TriangleMesh mesh, DSpace space){
+        super(mesh);
+        dGeom = FxBodyHelper.dTriMeshFromMeshView(this, space);
+    }
+
+    public MeshViewWithDGeom(TriangleMesh mesh, FxBody fb){
+        super(mesh);
+        DSpace space = fb.getSpace();
+        dGeom = FxBodyHelper.dTriMeshFromMeshView(this, space);
         fb.addGeom(dGeom);
     }
 
-    public SphereWithDGeom(double radius, FxBody fb, String name){
-        this(radius, fb);
+    public MeshViewWithDGeom(TriangleMesh mesh, FxBody fb, String name){
+        this(mesh, fb);
         this.name = name;
         this.dGeom.setData(name);
     }
 
-    public SphereWithDGeom(double radius, FxBody fb, DGeom dGeom){
-        super(radius);
-        this.dGeom = dGeom;
-        fb.addGeom(dGeom);
-    }
-
-    public SphereWithDGeom(double radius, FxBody fb, DGeom dGeom, String name){
-        this(radius, fb, dGeom);
-        this.name = name;
-        this.dGeom.setData(name);
+    public MeshViewWithDGeom(TriangleMesh mesh, FxBody fb, DGeom geom){
+        super(mesh);
+        dGeom = geom;
+        fb.addGeom(geom);
     }
 
     public void setDGeom(DGeom geom){
@@ -49,7 +52,6 @@ public class SphereWithDGeom extends Sphere implements Shape3DWithDGeom {
         dGeom = geom;
         if (dGeom != null && db != null) dGeom.setBody(db);
     }
-
     public DGeom getDGeom(){ return dGeom; }
 
     public void setName(String name){
@@ -89,4 +91,6 @@ public class SphereWithDGeom extends Sphere implements Shape3DWithDGeom {
             dGeom.setRotation(dRotMatrix);
         }
     }
+
+
 }

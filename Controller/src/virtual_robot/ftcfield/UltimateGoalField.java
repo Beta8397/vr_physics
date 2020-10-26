@@ -11,6 +11,7 @@ import javafx.scene.transform.Translate;
 import odefx.CBits;
 import odefx.FxBody;
 import odefx.FxBodyHelper;
+import odefx.node_with_geom.GroupWithDGeoms;
 import org.ode4j.ode.*;
 import util3d.Parts;
 import util3d.Util3D;
@@ -31,6 +32,8 @@ public class UltimateGoalField extends FtcField {
 
     List<FxBody> rings = new ArrayList<>();
     static DMass ringMass = OdeHelper.createMass();
+
+    FxBody[] wobbles = new FxBody[4];
 
     public static UltimateGoalField getInstance(Group group, DWorld world, DSpace space){
         if (ultimateGoalFieldInstance == null){
@@ -86,15 +89,6 @@ public class UltimateGoalField extends FtcField {
         fieldPlane.setData("Field Plane");
         fieldPlane.setCategoryBits(CBits.FLOOR);
 
-//        DSpace bridgeSpace = OdeHelper.createSimpleSpace(space);
-//        Group bridgeGroup = Parts.skyStoneBridge(bridgeSpace);
-//        for (DGeom g: bridgeSpace.getGeoms()){
-//            g.setCategoryBits(CBits.BRIDGE);
-//        }
-//
-//
-//        subSceneGroup.getChildren().add(bridgeGroup);
-
         PhongMaterial wallMaterial = new PhongMaterial(Color.color(0.02, 0.02, 0.02, 0));
         for (int i=0; i<4; i++){
             TriangleMesh wallMesh = Util3D.getParametricMesh(-HALF_FIELD_WIDTH, HALF_FIELD_WIDTH,-15, 15,
@@ -125,7 +119,30 @@ public class UltimateGoalField extends FtcField {
             for (DGeom dg: wallGeoms) dg.setCategoryBits(CBits.WALLS);
         }
 
+        DMass wobbleMass = OdeHelper.createMass();
+        wobbleMass.setCylinderTotal(1000, 3, 10, 6.25);
 
+        for (int i=0; i<4; i++) {
+            Group wobbleGroup = Parts.wobble(i<2? Parts.AllianceColor.BLUE : Parts.AllianceColor.RED);
+            wobbles[i] = FxBody.newInstance(world, space);
+            wobbles[i].setNode(wobbleGroup, true);
+            wobbles[i].setMass(wobbleMass);
+            double x = 60 * (1 + i%2);
+            if (i<2) x *= -1;
+            wobbles[i].setPosition(x, -120, 3);
+            subSceneGroup.getChildren().add(wobbleGroup);
+            wobbles[i].updateNodeDisplay();
+            wobbles[i].setCategoryBits(CBits.WOBBLES);
+        }
+
+
+        GroupWithDGeoms redGoal = Parts.goalStand(Color.color(1, 0, 0, 0.5), space);
+        redGoal.getTransforms().add(new Translate(90, 190, 0));
+        redGoal.updateGeomOffsets();
+        GroupWithDGeoms blueGoal = Parts.goalStand(Color.color(0, 0, 1, 0.5), space);
+        blueGoal.getTransforms().add(new Translate(-90, 190, 0));
+        blueGoal.updateGeomOffsets();
+        subSceneGroup.getChildren().addAll(redGoal, blueGoal);
 
 
         ringMass.setCylinder(1, 3, 6.25, 2);
@@ -179,6 +196,9 @@ public class UltimateGoalField extends FtcField {
     public void updateDisplay() {
         for (int i=0; i<rings.size(); i++){
             rings.get(i).updateNodeDisplay();
+        }
+        for (int i=0; i<4; i++) {
+            wobbles[i].updateNodeDisplay();
         }
     }
 

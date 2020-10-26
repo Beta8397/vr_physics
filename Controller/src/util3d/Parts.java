@@ -1,23 +1,26 @@
 package util3d;
 
 import javafx.scene.Group;
+import javafx.scene.Node;
 import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
-import javafx.scene.shape.Box;
-import javafx.scene.shape.Cylinder;
-import javafx.scene.shape.Mesh;
-import javafx.scene.shape.MeshView;
+import javafx.scene.shape.*;
 import javafx.scene.transform.Rotate;
 import javafx.scene.transform.Translate;
-import org.ode4j.ode.DGeom;
-import org.ode4j.ode.DSpace;
-import org.ode4j.ode.OdeHelper;
+import odefx.FxBody;
+import odefx.node_with_geom.BoxWithDGeom;
+import odefx.node_with_geom.CylWithDGeom;
+import odefx.node_with_geom.GroupWithDGeoms;
+import odefx.node_with_geom.MeshViewWithDGeom;
+import org.ode4j.ode.*;
 import virtual_robot.controller.VirtualRobotController;
 
 import java.util.List;
 
 public class Parts {
+
+    public enum AllianceColor {RED, BLUE}
 
     public static final int BACK_LEFT = 0, FRONT_LEFT = 1, FRONT_RIGHT = 0, BACK_RIGHT = 1;
 
@@ -170,6 +173,68 @@ public class Parts {
         MeshView ringView = new MeshView(ringMesh);
         ringView.setMaterial(orangeMat);
         return ringView;
+    }
+
+
+    public static GroupWithDGeoms goalStand(Color color, DSpace space){
+        PhongMaterial mat = new PhongMaterial(color);
+        BoxWithDGeom bottomBox = new BoxWithDGeom(60, 15, 32, space);
+        bottomBox.getTransforms().add(new Translate(0, 0, 16));
+        BoxWithDGeom leftVerticalBox = new BoxWithDGeom(4, 15, 50, space);
+        leftVerticalBox.getTransforms().add(new Translate(-28, 0, 57));
+        BoxWithDGeom rightVerticalBox = new BoxWithDGeom(4, 15, 50, space);
+        rightVerticalBox.getTransforms().add(new Translate(28, 0, 57));
+        BoxWithDGeom leftTopBox = new BoxWithDGeom(10, 15, 14, space);
+        leftTopBox.getTransforms().add(new Translate(-25, 0, 89));
+        BoxWithDGeom rightTopBox = new BoxWithDGeom(10, 15, 14, space);
+        rightTopBox.getTransforms().add(new Translate(25, 0, 89));
+        BoxWithDGeom topBox = new BoxWithDGeom(60, 15, 30, space);
+        topBox.getTransforms().add(new Translate(0, 0, 111));
+        BoxWithDGeom midHorizontalBox = new BoxWithDGeom(52, 15, 2, space);
+        midHorizontalBox.getTransforms().add(new Translate(0, 0, 52));
+        BoxWithDGeom topHorizontalBox = new BoxWithDGeom(52, 15, 2.5, space);
+        topHorizontalBox.getTransforms().add(new Translate(0, 0, 84));
+        GroupWithDGeoms group = new GroupWithDGeoms();
+        group.getChildren().addAll(bottomBox, leftVerticalBox, rightVerticalBox, leftTopBox, rightTopBox,
+                topBox, midHorizontalBox, topHorizontalBox);
+        for (Node n: group.getChildren()){
+            ((Shape3D)n).setMaterial(mat);
+        }
+        return group;
+    }
+
+    public static Group wobble(AllianceColor allianceColor){
+        final float R = 11.333f;
+        final double tMax = Math.toRadians(62);
+        TriangleMesh wobbleBaseMesh = Util3D.getParametricMesh(0, 2 * Math.PI, 0, tMax, 36, 18, true, false,
+                new Util3D.Param3DEqn() {
+                    @Override
+                    public float x(float s, float t) {
+                        return R * (float)Math.cos(s) * (float)Math.sin(t);
+                    }
+
+                    @Override
+                    public float y(float s, float t) {
+                        return R * (float)Math.sin(s) * (float)Math.sin(t);
+                    }
+
+                    @Override
+                    public float z(float s, float t) {
+                        return -R * (float)Math.cos(t);
+                    }
+                });
+        MeshView wobbleBaseMeshView = new MeshView(wobbleBaseMesh);
+        wobbleBaseMeshView.setMaterial(new PhongMaterial(Color.BLACK));
+        Cylinder diskView = new Cylinder(10, 2);
+        diskView.getTransforms().addAll(new Translate(0, 0, -4.33), new Rotate(90, Rotate.X_AXIS));
+        diskView.setMaterial(new PhongMaterial(allianceColor == AllianceColor.RED? Color.RED : Color.BLUE));
+        Cylinder handleView = new Cylinder(1.25, 23);
+        handleView.getTransforms().addAll(new Translate(0, 0, 8.17), new Rotate(90, Rotate.X_AXIS));
+        handleView.setMaterial(new PhongMaterial(allianceColor == AllianceColor.RED? Color.DARKRED : Color.DARKBLUE));
+        Group wobbleGroup = new Group();
+        wobbleGroup.getChildren().addAll(wobbleBaseMeshView, diskView, handleView);
+        wobbleGroup.getTransforms().add(new Translate(0, 0, 8.33));
+        return wobbleGroup;
     }
 
 

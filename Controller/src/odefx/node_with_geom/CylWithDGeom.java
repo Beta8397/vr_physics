@@ -80,10 +80,17 @@ public class CylWithDGeom extends Cylinder implements Shape3DWithDGeom {
         if (nodeRelGeomRotate != null) transform = transform.createConcatenation(nodeRelGeomRotate);
         transform = transform.createConcatenation(new Rotate(90, new Point3D(1, 0, 0)));
         double[] tData = transform.toArray(MatrixType.MT_3D_3x4);
-        dGeom.setOffsetPosition(tData[3], tData[7], tData[11]);
-        DMatrix3 dRotMatrix = new DMatrix3(tData[0], tData[1], tData[2], tData[4], tData[5], tData[6],
-                tData[8], tData[9], tData[10]);
-        dGeom.setOffsetRotation(dRotMatrix);
+        if (dGeom.getBody() != null) {
+            dGeom.setOffsetPosition(tData[3], tData[7], tData[11]);
+            DMatrix3 dRotMatrix = new DMatrix3(tData[0], tData[1], tData[2], tData[4], tData[5], tData[6],
+                    tData[8], tData[9], tData[10]);
+            dGeom.setOffsetRotation(dRotMatrix);
+        } else {
+            dGeom.setPosition(tData[3], tData[7], tData[11]);
+            DMatrix3 dRotMatrix = new DMatrix3(tData[0], tData[1], tData[2], tData[4], tData[5], tData[6],
+                    tData[8], tData[9], tData[10]);
+            dGeom.setRotation(dRotMatrix);
+        }
     }
 
 

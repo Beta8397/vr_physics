@@ -8,6 +8,7 @@ import javafx.scene.Group;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.Cylinder;
+import javafx.scene.shape.TriangleMesh;
 import javafx.scene.transform.Rotate;
 import javafx.scene.transform.Translate;
 import odefx.CBits;
@@ -16,6 +17,7 @@ import odefx.FxBodyHelper;
 import odefx.node_with_geom.BoxWithDGeom;
 import odefx.node_with_geom.CylWithDGeom;
 import odefx.node_with_geom.GroupWithDGeoms;
+import odefx.node_with_geom.MeshViewWithDGeom;
 import org.firstinspires.ftc.robotcore.external.matrices.GeneralMatrixF;
 import org.firstinspires.ftc.robotcore.external.matrices.MatrixF;
 import org.firstinspires.ftc.robotcore.external.matrices.VectorF;
@@ -66,8 +68,8 @@ public class UltimateBot extends VirtualBot {
     private double wlAverage;
 
     private GroupWithDGeoms shooter;
-    private double shooterElevationAngle = 20;
-    private Rotate shooterElevationRotate = new Rotate(shooterElevationAngle, 0, 18.5, 0, new Point3D(1, 0, 0));
+    private double shooterElevationAngle = 40;
+    private Rotate shooterElevationRotate = new Rotate(shooterElevationAngle, 0, 13, 0, new Point3D(1, 0, 0));
 
     List<FxBody> storedRings = new ArrayList<>();
 
@@ -339,7 +341,7 @@ public class UltimateBot extends VirtualBot {
          * Shooter elevation
          */
 
-        shooterElevationAngle = 30 - 20 * shooterElevServo.getInternalPosition();
+        shooterElevationAngle = 40 - 40 * shooterElevServo.getInternalPosition();
 
         /*
          * Trigger servo
@@ -383,7 +385,7 @@ public class UltimateBot extends VirtualBot {
         DMatrix3 shooterRotation = new DMatrix3(1, 0, 0,
                                                  0, cos, -sin,
                                                  0, sin, cos);
-        DVector3 shooterPosition = new DVector3(0, 20.5, 14);
+        DVector3 shooterPosition = new DVector3(0, 19, 17);
 
         /*
          * Position and orientation of axis of rotation of shooter in world coordinate system
@@ -505,8 +507,8 @@ public class UltimateBot extends VirtualBot {
         frontLeftRail.getTransforms().addAll(new Translate(-shortRailXOffset, railYOffset, halfPltHt+pltZOffset+0.5*tetrixWidth));
         Group frontRightRail = Parts.tetrixBox(shortRailLength, tetrixWidth, tetrixWidth, tetrixWidth);
         frontRightRail.getTransforms().addAll(new Translate(shortRailXOffset, railYOffset, halfPltHt+pltZOffset+0.5*tetrixWidth));
-        Group frontRail = Parts.tetrixBox(longRailLength, tetrixWidth, tetrixWidth, tetrixWidth);
-        frontRail.getTransforms().addAll(new Translate(0, railYOffset, halfPltHt+pltZOffset+1.5*tetrixWidth));
+        Group frontRail = Parts.tetrixBox(longRailLength, tetrixWidth, 2*tetrixWidth, tetrixWidth);
+        frontRail.getTransforms().addAll(new Translate(0, railYOffset, halfPltHt+pltZOffset+2*tetrixWidth));
         Group backLeftRail = Parts.tetrixBox(shortRailLength, tetrixWidth, tetrixWidth, tetrixWidth);
         backLeftRail.getTransforms().addAll(new Translate(-shortRailXOffset, -railYOffset, halfPltHt+pltZOffset+0.5*tetrixWidth));
         Group backRightRail = Parts.tetrixBox(shortRailLength, tetrixWidth, tetrixWidth, tetrixWidth);
@@ -542,7 +544,7 @@ public class UltimateBot extends VirtualBot {
         DBox leftSideBox = OdeHelper.createBox(sideBoxWidth, sideBoxLength, sideBoxHeight);
         DBox leftFrontRailBox = OdeHelper.createBox(0.9*shortRailLength, tetrixWidth, 0.9*tetrixWidth);
         DBox rightFrontRailBox = OdeHelper.createBox(0.9*shortRailLength, tetrixWidth, 0.9*tetrixWidth);
-        DBox frontRailBox = OdeHelper.createBox(0.9*longRailLength, tetrixWidth, 0.9*tetrixWidth);
+        DBox frontRailBox = OdeHelper.createBox(0.9*longRailLength, tetrixWidth, 1.8*tetrixWidth);
         DBox leftBackRailBox = OdeHelper.createBox(0.9*shortRailLength, tetrixWidth, 0.9*tetrixWidth);
         DBox rightBackRailBox = OdeHelper.createBox(0.9*shortRailLength, tetrixWidth, 0.9*tetrixWidth);
         DBox backRailBox = OdeHelper.createBox(0.9*longRailLength, tetrixWidth, 0.9*tetrixWidth);
@@ -574,7 +576,7 @@ public class UltimateBot extends VirtualBot {
         fxBody.addGeom(leftSideBox, -sideboxXOffset, 0, pltZOffset);
         fxBody.addGeom(leftFrontRailBox, -shortRailXOffset, railYOffset, pltZOffset+halfPltHt+tetrixWidth/2.0);
         fxBody.addGeom(rightFrontRailBox, shortRailXOffset, railYOffset, pltZOffset+halfPltHt+tetrixWidth/2.0);
-        fxBody.addGeom(frontRailBox, 0, railYOffset, pltZOffset+halfPltHt+1.5*tetrixWidth);
+        fxBody.addGeom(frontRailBox, 0, railYOffset, pltZOffset+halfPltHt+2*tetrixWidth);
         fxBody.addGeom(leftBackRailBox, -shortRailXOffset, -railYOffset, pltZOffset+halfPltHt+tetrixWidth/2.0);
         fxBody.addGeom(rightBackRailBox, shortRailXOffset, -railYOffset, pltZOffset+halfPltHt+tetrixWidth/2.0);
         fxBody.addGeom(backRailBox, 0, -railYOffset, pltZOffset+halfPltHt+1.5*tetrixWidth);
@@ -606,27 +608,34 @@ public class UltimateBot extends VirtualBot {
         PhongMaterial shooterWheelMaterial = new PhongMaterial(Color.BLUE);
         PhongMaterial shooterRailMaterial = new PhongMaterial(Color.CORAL);
         shooter = new GroupWithDGeoms();
-        BoxWithDGeom shooterBed = new BoxWithDGeom(15, 40, 1.25, fxBody, "Shooter Bed");
-        BoxWithDGeom leftShooterRail = new BoxWithDGeom(1.25, 25, 5, fxBody, "Left Shooter Rail");
-        BoxWithDGeom rightShooterRail = new BoxWithDGeom(1.25, 40, 5, fxBody, "Right Shooter Rail");
+        BoxWithDGeom shooterBed = new BoxWithDGeom(15, 30, 1.25, fxBody, "Shooter Bed");
+        BoxWithDGeom leftShooterRail = new BoxWithDGeom(1.25, 15, 5, fxBody, "Left Shooter Rail");
+        BoxWithDGeom rightShooterRail = new BoxWithDGeom(1.25, 30, 5, fxBody, "Right Shooter Rail");
         BoxWithDGeom backShooterRail = new BoxWithDGeom(12.5, 1.25, 5, fxBody, "Back Shooter Rail");
-        BoxWithDGeom shooterTop = new BoxWithDGeom(15, 20, 1.25, fxBody, "Shooter Top");
+        BoxWithDGeom shooterTop = new BoxWithDGeom(15, 15, 1.25, fxBody, "Shooter Top");
         CylWithDGeom shooterWheel = new CylWithDGeom(6.25, 2, fxBody, "Shooter Wheel");
         leftShooterRail.getTransforms().add(new Translate(-6.875, -7.5, 2.75));
         rightShooterRail.getTransforms().add(new Translate(6.875, 0, 2.75));
-        backShooterRail.getTransforms().add(new Translate(0, -19.375, 2.75));
-        shooterTop.getTransforms().add(new Translate(0, -10, 6.25));
-        shooterWheel.getTransforms().addAll(new Translate(-14, 13.75, 1.5), new Rotate(90, Rotate.X_AXIS));
+        backShooterRail.getTransforms().add(new Translate(0, -14.375, 2.75));
+        shooterTop.getTransforms().add(new Translate(0, -7.5, 6.25));
+        shooterWheel.getTransforms().addAll(new Translate(-14, 8.75, 1.5), new Rotate(90, Rotate.X_AXIS));
         shooterBed.setMaterial(shooterMaterial);
         leftShooterRail.setMaterial(shooterRailMaterial);
         rightShooterRail.setMaterial(shooterRailMaterial);
         backShooterRail.setMaterial(shooterRailMaterial);
         shooterTop.setMaterial(shooterRailMaterial);
         shooterWheel.setMaterial(shooterWheelMaterial);
-        shooter.getTransforms().addAll(new Translate(0, 2, 14), shooterElevationRotate);
+        shooter.getTransforms().addAll(new Translate(0, 6, 17), shooterElevationRotate);
         shooter.getChildren().addAll(shooterBed, leftShooterRail, rightShooterRail, backShooterRail, shooterTop, shooterWheel);
         botGroup.getChildren().add(shooter);
         shooter.updateGeomOffsets();
+
+        TriangleMesh backWedgeMesh = Util3D.PolygonTubeMesh(2*pltXOffset1, new float[]{3, -3, 3, 3, -3, 3});
+        MeshViewWithDGeom backWedge = new MeshViewWithDGeom(backWedgeMesh, fxBody);
+        backWedge.getTransforms().addAll(new Translate(0, -15, -1), new Rotate(90, Rotate.Y_AXIS));
+        backWedge.updateGeomOffset();
+        backWedge.setMaterial(new PhongMaterial(Color.TAN));
+        botGroup.getChildren().add(backWedge);
 
         zBase = 5.08;
 
