@@ -56,7 +56,7 @@ public class UltimateBotDemo extends LinearOpMode {
         DcMotor intakeMotor = hardwareMap.get(DcMotor.class, "intake_motor");
         DcMotor shooterMotor = hardwareMap.get(DcMotor.class, "shooter_motor");
         intakeMotor.setPower(1);
-        shooterMotor.setPower(1);
+        shooterMotor.setPower(0.8);
 
 
         telemetry.addData("Press Start When Ready","");
@@ -93,8 +93,10 @@ public class UltimateBotDemo extends LinearOpMode {
             double shooterElev = 0.5 * (1 + gamepad1.right_stick_y);
             shooterElevServo.setPosition(shooterElev);
 
-            telemetry.addData("Gamepad 1 left stick controls fwd/strafe.","");
-            telemetry.addData("Gamepad 1 triggers control turn.","");
+            telemetry.addData("GP 1 Lt stick controls fwd/strafe.","");
+            telemetry.addData("GP 1 triggers control turn.","");
+            telemetry.addData("GP 1 Rt stick controls shooter elev.","");
+            telemetry.addData("GP 1 A to shoot", "");
 
             telemetry.addData("Color","R %d  G %d  B %d", colorSensor.red(), colorSensor.green(), colorSensor.blue());
             Orientation orientation = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.RADIANS);

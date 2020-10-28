@@ -348,6 +348,12 @@ public class UltimateBot extends VirtualBot {
         fxBody.addTorque(new DVector3(0, 0, frictionForces.get(2)));
 
         /*
+         * Update intake and shooter motors
+         */
+        shooterMotor.update(millis);
+        intakeMotor.update(millis);
+
+        /*
          * Shooter elevation
          */
 
@@ -434,6 +440,14 @@ public class UltimateBot extends VirtualBot {
          */
         ringVelocity.add(ringAddedVelocity);
         ring.setLinearVel(ringVelocity);
+
+        /*
+         * Add spin to ring
+         */
+        DVector3 spin = new DVector3();
+        ring.vectorToWorld(0, 0, 1, spin);
+        spin.scale(-shootSpeed / 6.66);
+        ring.setAngularVel(spin);
 
         Platform.runLater(
                 new Runnable() {
