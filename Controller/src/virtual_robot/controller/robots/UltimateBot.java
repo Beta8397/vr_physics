@@ -347,6 +347,12 @@ public class UltimateBot extends VirtualBot {
         fxBody.addTorque(new DVector3(0, 0, frictionForces.get(2)));
 
         /*
+         * Update intake and shooter motors
+         */
+        shooterMotor.update(millis);
+        intakeMotor.update(millis);
+
+        /*
          * Shooter elevation
          */
 

@@ -978,48 +978,45 @@ public class VirtualRobotController {
     }
 
     private void handleSubSceneMouseEvents(MouseEvent event){
-        if (event.getEventType() == MouseEvent.MOUSE_CLICKED) {
-
-            if (opModeInitialized || opModeStarted || !topView) return;
-            bot.positionWithMouseClick(event);
-        } else if (event.getEventType() == MouseDragEvent.DRAG_DETECTED){
-            if (!topView) {
-                mouseX = event.getSceneX();
-                mouseY = event.getSceneY();
-                subScene.startFullDrag();
-                currentCameraButton.setStyle("-fx-background-color: darkgray");
+        if (topView) {
+            if (!opModeInitialized && !opModeStarted && (event.getEventType() == MouseEvent.MOUSE_PRESSED
+                    || event.getEventType() == MouseEvent.MOUSE_DRAGGED)) {
+                bot.positionWithMouseClick(event);
             }
-        } else if (event.getEventType() == MouseDragEvent.MOUSE_DRAG_OVER){
-            if (!topView) {
-                double deltaX = (event.getSceneX() - mouseX) / subScene.getWidth();
-                double deltaY = (event.getSceneY() - mouseY) / subScene.getHeight();
-                mouseX = event.getSceneX();
-                mouseY = event.getSceneY();
-                if (event.isPrimaryButtonDown()) {
-                    if (!event.isAltDown()) {
-                        double elev = cameraElevationTransform.getAngle();
-                        elev -= deltaY * 90.0;
-                        elev = Math.min(80, Math.max(0, elev));
-                        double azim = cameraAzimuthTransform.getAngle();
-                        azim -= deltaX * 90.0;
-                        cameraElevationTransform.setAngle(elev);
-                        cameraAzimuthTransform.setAngle(azim);
-                    } else {
-                        double fov = camera.getFieldOfView();
-                        fov -= 90 * deltaY;
-                        fov = Math.min(90, Math.max(10, fov));
-                        camera.setFieldOfView(fov);
-                    }
+        } else if (event.getEventType() == MouseDragEvent.DRAG_DETECTED) {
+            mouseX = event.getSceneX();
+            mouseY = event.getSceneY();
+            subScene.startFullDrag();
+            currentCameraButton.setStyle("-fx-background-color: darkgray");
+        } else if (event.getEventType() == MouseDragEvent.MOUSE_DRAG_OVER) {
+            double deltaX = (event.getSceneX() - mouseX) / subScene.getWidth();
+            double deltaY = (event.getSceneY() - mouseY) / subScene.getHeight();
+            mouseX = event.getSceneX();
+            mouseY = event.getSceneY();
+            if (event.isPrimaryButtonDown()) {
+                if (!event.isAltDown()) {
+                    double elev = cameraElevationTransform.getAngle();
+                    elev -= deltaY * 90.0;
+                    elev = Math.min(80, Math.max(0, elev));
+                    double azim = cameraAzimuthTransform.getAngle();
+                    azim -= deltaX * 90.0;
+                    cameraElevationTransform.setAngle(elev);
+                    cameraAzimuthTransform.setAngle(azim);
                 } else {
-                    double steerX = cameraSteerXTransform.getAngle();
-                    double steerY = cameraSteerYTransform.getAngle();
-                    steerX += deltaY * 45;
-                    steerY -= deltaX * 45;
-                    steerX = Math.min(20, Math.max(-20, steerX));
-                    steerY = Math.min(20, Math.max(-20, steerY));
-                    cameraSteerXTransform.setAngle(steerX);
-                    cameraSteerYTransform.setAngle(steerY);
+                    double fov = camera.getFieldOfView();
+                    fov -= 90 * deltaY;
+                    fov = Math.min(90, Math.max(10, fov));
+                    camera.setFieldOfView(fov);
                 }
+            } else {
+                double steerX = cameraSteerXTransform.getAngle();
+                double steerY = cameraSteerYTransform.getAngle();
+                steerX += deltaY * 45;
+                steerY -= deltaX * 45;
+                steerX = Math.min(20, Math.max(-20, steerX));
+                steerY = Math.min(20, Math.max(-20, steerY));
+                cameraSteerXTransform.setAngle(steerX);
+                cameraSteerYTransform.setAngle(steerY);
             }
         }
 
@@ -1130,6 +1127,16 @@ public class VirtualRobotController {
             public void handle(MouseEvent event) {
                 handleSubSceneMouseEvents(event);
             }
+        });
+
+        subScene.setOnMousePressed(new EventHandler<MouseEvent>() {
+            @Override
+            public void handle(MouseEvent event) { handleSubSceneMouseEvents(event); }
+        });
+
+        subScene.setOnMouseDragged(new EventHandler<MouseEvent>() {
+            @Override
+            public void handle(MouseEvent event) { handleSubSceneMouseEvents(event); }
         });
 
         subScene.setOnDragDetected(new EventHandler<MouseEvent>() {
