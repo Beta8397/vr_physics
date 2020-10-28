@@ -440,6 +440,14 @@ public class UltimateBot extends VirtualBot {
         ringVelocity.add(ringAddedVelocity);
         ring.setLinearVel(ringVelocity);
 
+        /*
+         * Add spin to ring
+         */
+        DVector3 spin = new DVector3();
+        ring.vectorToWorld(0, 0, 1, spin);
+        spin.scale(-shootSpeed / 6.66);
+        ring.setAngularVel(spin);
+
         Platform.runLater(
                 new Runnable() {
                     @Override

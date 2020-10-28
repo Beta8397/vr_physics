@@ -12,6 +12,7 @@ import odefx.CBits;
 import odefx.FxBody;
 import odefx.FxBodyHelper;
 import odefx.node_with_geom.GroupWithDGeoms;
+import org.ode4j.math.DMatrix3;
 import org.ode4j.ode.*;
 import util3d.Parts;
 import util3d.Util3D;
@@ -180,6 +181,9 @@ public class UltimateGoalField extends FtcField {
             if (i<4){
                 //Initial Rings on the field
                 ring.setPosition(92.7, -57.2, 1 + 2*i);
+                DMatrix3 rot = new DMatrix3();
+                DRotation.dRFromAxisAndAngle(rot, 0, 0, 1, 0);
+                ring.setRotation(rot);
                 if (!subSceneGroup.getChildren().contains(ring.getNode())) subSceneGroup.getChildren().add(ring.getNode());
                 ring.getGeom("ring").enable();
                 ring.enable();
