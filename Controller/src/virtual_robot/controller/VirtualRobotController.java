@@ -1084,11 +1084,9 @@ public class VirtualRobotController {
          *  will apply forces to the bodies during the next ODE integration step.
          */
 
+        int n = 0;
         final int N = 32;
         DContactBuffer contacts = new DContactBuffer(N);
-
-        int n  = 0;
-
         try {
             n = OdeHelper.collide(o1, o2, N, contacts.getGeomBuffer());
         } catch (RuntimeException e){

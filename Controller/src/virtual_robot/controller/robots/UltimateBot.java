@@ -656,33 +656,6 @@ public class UltimateBot extends VirtualBot {
         botGroup.getChildren().add(shooter);
         shooter.updateGeomOffsets();
 
-//        TriangleMesh backWedgeMesh = Util3D.PolygonTubeMesh(2*pltXOffset1, new float[]{3, -3, 3, 3, -3, 3});
-//        TriangleMesh backWedgeMesh = Util3D.getParametricMesh(0, 18, -1, 1,
-//                18, 20, false, false, new Util3D.Param3DEqn() {
-//            @Override
-//            public float x(float s, float t) {
-//                int i = (int)s;
-//                return i<=6? 3 : i<=12? 9-i : i-15;
-//            }
-//
-//            @Override
-//            public float y(float s, float t) {
-//                int i = (int)s;
-//                return i<=6? i-3 : i<=12? 3 : 15-i;
-//            }
-//
-//            @Override
-//            public float z(float s, float t) {
-//                return pltXOffset1*t;
-//            }
-//        });
-
-//        MeshViewWithDGeom backWedge = new MeshViewWithDGeom(backWedgeMesh, fxBody);
-//        backWedge.getTransforms().addAll(new Translate(0, -15, -1), new Rotate(90, Rotate.Y_AXIS));
-//        backWedge.updateGeomOffset();
-//        backWedge.setMaterial(new PhongMaterial(Color.TAN));
-//        botGroup.getChildren().add(backWedge);
-
         GroupWithDGeoms backWedge = new GroupWithDGeoms();
         BoxWithDGeom box1 = new BoxWithDGeom(2*pltXOffset1, 2, 2, fxBody);
         box1.getTransforms().add(new Translate(0, -2, -2));
