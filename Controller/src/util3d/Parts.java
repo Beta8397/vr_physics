@@ -178,8 +178,12 @@ public class Parts {
 
     public static GroupWithDGeoms goalStand(Color color, DSpace space){
         PhongMaterial mat = new PhongMaterial(color);
-        BoxWithDGeom bottomBox = new BoxWithDGeom(60, 15, 32, space);
-        bottomBox.getTransforms().add(new Translate(0, 0, 16));
+//        BoxWithDGeom bottomBox = new BoxWithDGeom(60, 15, 32, space);
+//        bottomBox.getTransforms().add(new Translate(0, 0, 16));
+        Box bottomBox = new Box(60, 15, 30);
+        bottomBox.getTransforms().add(new Translate(0, 0, 15));
+        BoxWithDGeom spacer = new BoxWithDGeom(60, 15, 2, space);
+        spacer.getTransforms().add(new Translate(0, 0, 31));
         BoxWithDGeom leftVerticalBox = new BoxWithDGeom(4, 15, 50, space);
         leftVerticalBox.getTransforms().add(new Translate(-28, 0, 57));
         BoxWithDGeom rightVerticalBox = new BoxWithDGeom(4, 15, 50, space);
@@ -195,7 +199,7 @@ public class Parts {
         BoxWithDGeom topHorizontalBox = new BoxWithDGeom(52, 15, 2.5, space);
         topHorizontalBox.getTransforms().add(new Translate(0, 0, 84));
         GroupWithDGeoms group = new GroupWithDGeoms();
-        group.getChildren().addAll(bottomBox, leftVerticalBox, rightVerticalBox, leftTopBox, rightTopBox,
+        group.getChildren().addAll(bottomBox, spacer, leftVerticalBox, rightVerticalBox, leftTopBox, rightTopBox,
                 topBox, midHorizontalBox, topHorizontalBox);
         for (Node n: group.getChildren()){
             ((Shape3D)n).setMaterial(mat);

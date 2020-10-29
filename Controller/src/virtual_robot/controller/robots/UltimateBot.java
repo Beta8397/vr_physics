@@ -6,10 +6,12 @@ import com.qualcomm.robotcore.hardware.configuration.MotorType;
 import javafx.application.Platform;
 import javafx.geometry.Point3D;
 import javafx.scene.Group;
+import javafx.scene.Node;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.Cylinder;
 import javafx.scene.shape.Mesh;
+import javafx.scene.shape.Shape3D;
 import javafx.scene.shape.TriangleMesh;
 import javafx.scene.transform.Rotate;
 import javafx.scene.transform.Translate;
@@ -655,30 +657,45 @@ public class UltimateBot extends VirtualBot {
         shooter.updateGeomOffsets();
 
 //        TriangleMesh backWedgeMesh = Util3D.PolygonTubeMesh(2*pltXOffset1, new float[]{3, -3, 3, 3, -3, 3});
-        TriangleMesh backWedgeMesh = Util3D.getParametricMesh(0, 18, -1, 1,
-                18, 20, false, false, new Util3D.Param3DEqn() {
-            @Override
-            public float x(float s, float t) {
-                int i = (int)s;
-                return i<=6? 3 : i<=12? 9-i : i-15;
-            }
+//        TriangleMesh backWedgeMesh = Util3D.getParametricMesh(0, 18, -1, 1,
+//                18, 20, false, false, new Util3D.Param3DEqn() {
+//            @Override
+//            public float x(float s, float t) {
+//                int i = (int)s;
+//                return i<=6? 3 : i<=12? 9-i : i-15;
+//            }
+//
+//            @Override
+//            public float y(float s, float t) {
+//                int i = (int)s;
+//                return i<=6? i-3 : i<=12? 3 : 15-i;
+//            }
+//
+//            @Override
+//            public float z(float s, float t) {
+//                return pltXOffset1*t;
+//            }
+//        });
 
-            @Override
-            public float y(float s, float t) {
-                int i = (int)s;
-                return i<=6? i-3 : i<=12? 3 : 15-i;
-            }
+//        MeshViewWithDGeom backWedge = new MeshViewWithDGeom(backWedgeMesh, fxBody);
+//        backWedge.getTransforms().addAll(new Translate(0, -15, -1), new Rotate(90, Rotate.Y_AXIS));
+//        backWedge.updateGeomOffset();
+//        backWedge.setMaterial(new PhongMaterial(Color.TAN));
+//        botGroup.getChildren().add(backWedge);
 
-            @Override
-            public float z(float s, float t) {
-                return pltXOffset1*t;
-            }
-        });
-        MeshViewWithDGeom backWedge = new MeshViewWithDGeom(backWedgeMesh, fxBody);
-        backWedge.getTransforms().addAll(new Translate(0, -15, -1), new Rotate(90, Rotate.Y_AXIS));
-        backWedge.updateGeomOffset();
-        backWedge.setMaterial(new PhongMaterial(Color.TAN));
+        GroupWithDGeoms backWedge = new GroupWithDGeoms();
+        BoxWithDGeom box1 = new BoxWithDGeom(2*pltXOffset1, 2, 2, fxBody);
+        box1.getTransforms().add(new Translate(0, -2, -2));
+        BoxWithDGeom box2 = new BoxWithDGeom(2*pltXOffset1, 2, 4, fxBody);
+        box2.getTransforms().add(new Translate(0, 0, -1));
+        BoxWithDGeom box3 = new BoxWithDGeom(2*pltXOffset1, 2, 6, fxBody);
+        box3.getTransforms().add(new Translate(0, 2, 0));
+        backWedge.getChildren().addAll(box1, box2, box3);
+        for (Node n: backWedge.getChildren()) ((Shape3D)n).setMaterial(new PhongMaterial(Color.TAN));
+        backWedge.getTransforms().add(new Translate(0, -15, -1));
+        backWedge.updateGeomOffsets();
         botGroup.getChildren().add(backWedge);
+
 
         zBase = 5.08;
 

@@ -1086,7 +1086,14 @@ public class VirtualRobotController {
 
         final int N = 32;
         DContactBuffer contacts = new DContactBuffer(N);
-        int n = OdeHelper.collide (o1,o2,N,contacts.getGeomBuffer());//[0].geom),sizeof(dContact));
+
+        int n  = 0;
+
+        try {
+            n = OdeHelper.collide(o1, o2, N, contacts.getGeomBuffer());
+        } catch (RuntimeException e){
+            n = 0;
+        }
 
         if (n == 0) return;
 
