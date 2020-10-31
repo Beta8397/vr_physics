@@ -10,9 +10,7 @@ import javafx.scene.Node;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.Cylinder;
-import javafx.scene.shape.Mesh;
 import javafx.scene.shape.Shape3D;
-import javafx.scene.shape.TriangleMesh;
 import javafx.scene.transform.Rotate;
 import javafx.scene.transform.Translate;
 import odefx.CBits;
@@ -21,7 +19,6 @@ import odefx.FxBodyHelper;
 import odefx.node_with_geom.BoxWithDGeom;
 import odefx.node_with_geom.CylWithDGeom;
 import odefx.node_with_geom.GroupWithDGeoms;
-import odefx.node_with_geom.MeshViewWithDGeom;
 import org.firstinspires.ftc.robotcore.external.matrices.GeneralMatrixF;
 import org.firstinspires.ftc.robotcore.external.matrices.MatrixF;
 import org.firstinspires.ftc.robotcore.external.matrices.VectorF;
@@ -39,13 +36,14 @@ import virtual_robot.controller.VirtualBot;
 import virtual_robot.controller.VirtualRobotController;
 import virtual_robot.ftcfield.UltimateGoalField;
 import virtual_robot.util.AngleUtils;
-
 import java.util.*;
 
 import static org.ode4j.ode.OdeConstants.*;
 
 /**
- *  Team Beta 8397 specific robot configuration
+ *  Ultimate Goal game-specific robot configuration
+ *
+ *  Mecanum-wheel bot with intake and shooter for rings, and grabber for wobbles.
  *
  */
 @BotConfig(name = "Ultimate Bot")
@@ -58,7 +56,7 @@ public class UltimateBot extends VirtualBot {
     //Max possible force (in Robot-X direction) at any wheel (each wheel gets 1/4 of robot weight)
     private final float MAX_WHEEL_X_FORCE = TOTAL_MASS * GRAVITY * FIELD_FRICTION_COEFF / (4.0f * (float)Math.sqrt(2));
 
-    public final MotorType motorType = MotorType.NeverestOrbital20;
+    private final MotorType motorType = MotorType.NeverestOrbital20;
     private DcMotorImpl[] motors = null;
     private DcMotorImpl shooterMotor = null;
     private BNO055EnhancedImpl imu = null;
@@ -67,6 +65,8 @@ public class UltimateBot extends VirtualBot {
     private ServoImpl shooterTrigServo = null;
     private VirtualRobotController.DistanceSensorImpl[] distanceSensors = null;
     private DcMotorImpl intakeMotor = null;
+    private ServoImpl armServo = null;
+    private ServoImpl handServo = null;
 
     private double wheelCircumference;
     private double interWheelWidth;
@@ -75,9 +75,24 @@ public class UltimateBot extends VirtualBot {
 
     private GroupWithDGeoms shooter;
     private double shooterElevationAngle = 40;
-    private Rotate shooterElevationRotate = new Rotate(shooterElevationAngle, 0, 13, 0, new Point3D(1, 0, 0));
+    private Rotate shooterElevationRotate = new Rotate(shooterElevationAngle, 4, 13, 0, new Point3D(1, 0, 0));
+    boolean shooterCocked = true;
+
+    GroupWithDGeoms grabber;
+    private double grabberRotation = 0.0;
+    private double leftHandRotation = 0.0;
+    private double rightHandRotation = 0.0;
+    private Rotate grabberRotate = new Rotate(grabberRotation, 0, 0, 0, Rotate.X_AXIS);
+    private Rotate leftHandRotate = new Rotate(leftHandRotation, 0, 0, 0, Rotate.Z_AXIS);
+    private Rotate rightHandRotate = new Rotate(rightHandRotation, 0, 0, 0, Rotate.Z_AXIS);
 
     List<FxBody> storedRings = new ArrayList<>();
+
+    private FxBody grabbedWobble = null;
+    private DHingeJoint wobbleJoint = null;
+    private DAMotorJoint wobbleMotor = null;
+    private boolean fingersJustClosed = true;
+    private double priorFingerPos = 1;
 
     private double[][] tWR; //Transform from wheel motion to robot motion
 
@@ -88,8 +103,6 @@ public class UltimateBot extends VirtualBot {
 
     double[] wheelRotations = new double[]{0,0,0,0};
 
-    double shooterTrigServoPos = 0;
-    boolean shooterCocked = true;
 
     Group botGroup;
 
@@ -119,6 +132,8 @@ public class UltimateBot extends VirtualBot {
         shooterElevServo = (ServoImpl)hardwareMap.servo.get("shooter_elev_servo");
         shooterTrigServo = (ServoImpl)hardwareMap.servo.get("shooter_trig_servo");
         shooterMotor = (DcMotorImpl)hardwareMap.get(DcMotor.class, "shooter_motor");
+        armServo = (ServoImpl)hardwareMap.servo.get("arm_servo");
+        handServo = (ServoImpl)hardwareMap.servo.get("hand_servo");
         hardwareMap.setActive(false);
 
         wheelCircumference = Math.PI * botWidth / 4.5;
@@ -169,6 +184,8 @@ public class UltimateBot extends VirtualBot {
         hardwareMap.put("color_sensor", controller.new ColorSensorImpl());
         hardwareMap.put("shooter_elev_servo", new ServoImpl());
         hardwareMap.put("shooter_trig_servo", new ServoImpl());
+        hardwareMap.put("arm_servo", new ServoImpl());
+        hardwareMap.put("hand_servo", new ServoImpl());
     }
 
     public synchronized void updateSensors(){
@@ -362,7 +379,7 @@ public class UltimateBot extends VirtualBot {
         shooterElevationAngle = 40 - 40 * shooterElevServo.getInternalPosition();
 
         /*
-         * Trigger servo
+         * Trigger servo.
          */
 
         if (shooterCocked){
@@ -376,6 +393,39 @@ public class UltimateBot extends VirtualBot {
             }
         }
 
+        /*
+         * Grabber
+         */
+
+        double fingerPos = handServo.getInternalPosition();
+        grabberRotation = 180 * armServo.getInternalPosition();
+        leftHandRotation = 180 * fingerPos;
+        rightHandRotation = -180 * fingerPos;
+
+        /*
+         * In the handleContacts method, a wobble can be grabbed only if fingersJustClosed is true.
+         */
+        fingersJustClosed = fingerPos <= 0.01 && priorFingerPos > 0.01;
+        priorFingerPos = fingerPos;
+
+        /*
+         * Handling of a currently grabbed wobble. If fingers have opened even slightly, drop the wobble.
+         * Otherwise, set the speed of the wobble motor so that wobble position tracks the position of
+         * the grabber arm.
+         */
+        if (grabbedWobble != null){
+            if (fingerPos > 0.01){
+                wobbleJoint.destroy();
+                wobbleMotor.destroy();
+                grabbedWobble = null;
+            } else {
+                double servoAngle = armServo.getInternalPosition() * Math.PI;
+                double wobbleAngle = wobbleJoint.getAngle();
+                double error = AngleUtils.normalizeRadians(servoAngle + wobbleAngle);
+                wobbleMotor.setParamVel(-100*error/millis);
+            }
+        }
+
     }
 
     private void shoot(){
@@ -384,6 +434,9 @@ public class UltimateBot extends VirtualBot {
         if (shooterMotor.getDirection() == DcMotorSimple.Direction.REVERSE) shooterMotorPower *= -1;
         if (shooterMotorPower <= 0) return;
 
+        /*
+         * Get the ring to be shot (an FxBody), re-enable it, and re-enable its DGeom.
+         */
         FxBody ring = storedRings.get(0);
         storedRings.remove(0);
         ring.enable();
@@ -403,7 +456,7 @@ public class UltimateBot extends VirtualBot {
         DMatrix3 shooterRotation = new DMatrix3(1, 0, 0,
                                                  0, cos, -sin,
                                                  0, sin, cos);
-        DVector3 shooterPosition = new DVector3(0, 19, 17);
+        DVector3 shooterPosition = new DVector3(4, 19, 17);
 
         /*
          * Position and orientation of axis of rotation of shooter in world coordinate system
@@ -451,6 +504,9 @@ public class UltimateBot extends VirtualBot {
         spin.scale(-shootSpeed / 6.66);
         ring.setAngularVel(spin);
 
+        /*
+         * Add ring UI back to the subSceneGroup
+         */
         Platform.runLater(
                 new Runnable() {
                     @Override
@@ -466,22 +522,16 @@ public class UltimateBot extends VirtualBot {
 
 
     /**
-     * Set up FxBody2 as a single DBody with compound geometry. Interaction between robot components is
+     * Set up FxBody as a single DBody with compound geometry. Interaction between robot components is
      * kinematic, accomplished by changing the offsets of the various DGeom objects belonging to the DBody.
-     *
-     * Disadvantage: Contact joints between the component DGeoms and external objects are between the DBody objects,
-     * so friction doesn't work to move (e.g., lift) an external object when the offset of the contacting DGeom
-     * is moved.
-     *
-     * Possible solution: Add additional DBody objects (e.g., for the hand) that are kinematic, and
-     * track the position of the kinematically-controlled components.
      */
     protected void setUpFxBody(){
 
-        //Create new FxBody2 object to represent the chassis. This will contain the DBody (for physics sim),
-        //a Group object for display, and multiple DGeom objects (for collision handling). It will
-        //also have children--these will be other FxBody2 objects that represent robot components other than
-        //the chassis.
+        /*
+         * Create new FxBody object to represent the chassis. This extends DxBody, and implements DxBody (for physics sim),
+         * and contains a Group object for display, and multiple DGeom objects (for collision handling).
+         */
+
         DWorld world = controller.getWorld();
         fxBody = FxBody.newInstance(world, botSpace);
         DBody chassisBody = fxBody;
@@ -515,10 +565,15 @@ public class UltimateBot extends VirtualBot {
         float wheelXOffset = 7 * 2.54f;
         float wheelYOffset = 6.5f * 2.54f;
 
-        //Create Group for display of chassis
+        /*
+         * Create Group for display of robot
+         */
 
         botGroup = new Group();
 
+        /*
+         * Group of UI elements for chassis plates
+         */
         Group[] plates = new Group[4];
         PhongMaterial plateMaterial = new PhongMaterial(Color.color(0.6, 0.3, 0));
         for (int i=0; i<4; i++){
@@ -529,6 +584,9 @@ public class UltimateBot extends VirtualBot {
             plates[i].getTransforms().addAll(new Translate(x, 0, pltZOffset), new Rotate(-90, Rotate.Y_AXIS));
         }
 
+        /*
+         * Groups for the UI elements for the tetrix rails at the back and front of the robot
+         */
         Group frontLeftRail = Parts.tetrixBox(shortRailLength, tetrixWidth, tetrixWidth, tetrixWidth);
         frontLeftRail.getTransforms().addAll(new Translate(-shortRailXOffset, railYOffset, halfPltHt+pltZOffset+0.5*tetrixWidth));
         Group frontRightRail = Parts.tetrixBox(shortRailLength, tetrixWidth, tetrixWidth, tetrixWidth);
@@ -542,9 +600,15 @@ public class UltimateBot extends VirtualBot {
         Group backRail = Parts.tetrixBox(longRailLength, tetrixWidth, tetrixWidth, tetrixWidth);
         backRail.getTransforms().addAll(new Translate(0, -railYOffset, halfPltHt+pltZOffset+1.5*tetrixWidth));
 
+        /*
+         * Add plates and rail groups to botGroup
+         */
         botGroup.getChildren().addAll(plates);
         botGroup.getChildren().addAll(frontLeftRail, frontRightRail, frontRail, backLeftRail, backRightRail, backRail);
 
+        /*
+         * Groups for the UI elements for the mecanum wheels
+         */
         Group[] wheels = new Group[4];
         for (int i=0; i<4; i++){
             wheels[i] = Parts.mecanumWheel(wheelDiam, wheelWidth, i);
@@ -555,16 +619,17 @@ public class UltimateBot extends VirtualBot {
             wheels[i].getTransforms().add(wheelRotates[i]);
         }
 
-
         botGroup.getChildren().addAll(wheels);
 
-
-
-        //For display purposes, set the Node object of fxBody to the display group
+        /*
+         * Establish botGroup as the node belonging to fxBody.
+         */
 
         fxBody.setNode(botGroup, false);
 
-        //Generate DGeom objects (they happen to all be boxes) for chassis collision handling
+        /*
+         * Generate DGeom objects (they happen to all be boxes) for chassis collision handling
+         */
 
         DBox rightSideBox = OdeHelper.createBox(sideBoxWidth, sideBoxLength, sideBoxHeight);
         DBox leftSideBox = OdeHelper.createBox(sideBoxWidth, sideBoxLength, sideBoxHeight);
@@ -596,7 +661,9 @@ public class UltimateBot extends VirtualBot {
         DTriMesh botBottomMesh = OdeHelper.createTriMesh(botSpace, botBottomData, null, null, null);
         botBottomMesh.setData("Bot Bottom Mesh");
 
-        //Add the chassis DGeom objects to fxBody, with appropriate offsets
+        /*
+         * Add the chassis DGeom objects to fxBody, with appropriate offsets
+         */
 
         fxBody.addGeom(rightSideBox, sideboxXOffset, 0, pltZOffset);
         fxBody.addGeom(leftSideBox, -sideboxXOffset, 0, pltZOffset);
@@ -609,8 +676,9 @@ public class UltimateBot extends VirtualBot {
         fxBody.addGeom(botBottomMesh, 0, 0, -halfPltHt);
 
         /*
-         * Ring Intake
+         * Ring Intake: four green cylinders for UI, but a single long cylinder for collision handling
          */
+
         PhongMaterial intakeMaterial = new PhongMaterial(Color.GREEN);
         Group intakeGroup = new Group();
         for (int i=0; i<4; i++){
@@ -628,6 +696,13 @@ public class UltimateBot extends VirtualBot {
 
         /*
          * Shooter
+         *
+         * A GroupWithDGeoms object composed of multiple ShapeWithDGeom objects; these belong to classes that
+         * extend Shape3D, and each possesses a DGeom object.
+         *
+         * When the shooter is moved relative to the robot (and also after initial creation), its updateGeomOffsets()
+         * method must be called so that the DGeom objects track this movement.
+         *
          */
 
         PhongMaterial shooterMaterial = new PhongMaterial(Color.AQUA);
@@ -639,23 +714,27 @@ public class UltimateBot extends VirtualBot {
         BoxWithDGeom rightShooterRail = new BoxWithDGeom(1.25, 30, 5, fxBody, "Right Shooter Rail");
         BoxWithDGeom backShooterRail = new BoxWithDGeom(12.5, 1.25, 5, fxBody, "Back Shooter Rail");
         BoxWithDGeom shooterTop = new BoxWithDGeom(15, 15, 1.25, fxBody, "Shooter Top");
-        CylWithDGeom shooterWheel = new CylWithDGeom(6.25, 2, fxBody, "Shooter Wheel");
+        CylWithDGeom shooterWheel = new CylWithDGeom(4.25, 2, fxBody, "Shooter Wheel");
         leftShooterRail.getTransforms().add(new Translate(-6.875, -7.5, 2.75));
         rightShooterRail.getTransforms().add(new Translate(6.875, 0, 2.75));
         backShooterRail.getTransforms().add(new Translate(0, -14.375, 2.75));
         shooterTop.getTransforms().add(new Translate(0, -7.5, 6.25));
-        shooterWheel.getTransforms().addAll(new Translate(-14, 8.75, 1.5), new Rotate(90, Rotate.X_AXIS));
+        shooterWheel.getTransforms().addAll(new Translate(-11, 8.75, 1.5), new Rotate(90, Rotate.X_AXIS));
         shooterBed.setMaterial(shooterMaterial);
         leftShooterRail.setMaterial(shooterRailMaterial);
         rightShooterRail.setMaterial(shooterRailMaterial);
         backShooterRail.setMaterial(shooterRailMaterial);
         shooterTop.setMaterial(shooterRailMaterial);
         shooterWheel.setMaterial(shooterWheelMaterial);
-        shooter.getTransforms().addAll(new Translate(0, 6, 17), shooterElevationRotate);
+        shooter.getTransforms().addAll(new Translate(4, 6, 17), shooterElevationRotate);
         shooter.getChildren().addAll(shooterBed, leftShooterRail, rightShooterRail, backShooterRail, shooterTop, shooterWheel);
         botGroup.getChildren().add(shooter);
         shooter.updateGeomOffsets();
 
+        /*
+         * Back wedge keeps rings from entering bot from behind, and also keeps wobbles from getting hung
+         * up inside bot
+         */
         GroupWithDGeoms backWedge = new GroupWithDGeoms();
         BoxWithDGeom box1 = new BoxWithDGeom(2*pltXOffset1, 2, 2, fxBody);
         box1.getTransforms().add(new Translate(0, -2, -2));
@@ -669,12 +748,53 @@ public class UltimateBot extends VirtualBot {
         backWedge.updateGeomOffsets();
         botGroup.getChildren().add(backWedge);
 
+        /*
+         * Wobble grabber.
+         *
+         * A GroupWithDGeoms
+         */
+        PhongMaterial grabberMaterial = new PhongMaterial(Color.CORAL);
+        PhongMaterial handMaterial = new PhongMaterial(Color.BROWN);
+        grabber = new GroupWithDGeoms();
+        BoxWithDGeom arm = new BoxWithDGeom(7.5, 20, 3.0, fxBody);
+        GroupWithDGeoms leftHand = new GroupWithDGeoms();
+        BoxWithDGeom leftMetacarpal = new BoxWithDGeom(2.5, 2.5, 3.0, fxBody);
+        leftMetacarpal.getTransforms().add(new Translate(1.25, 1.25, 0));
+        BoxWithDGeom leftPhalanx = new BoxWithDGeom(3.75, 2.5, 3.0, fxBody);
+        leftPhalanx.getTransforms().add(new Translate(3.75/2, 3.75, 0));
+        leftHand.getChildren().addAll(leftMetacarpal, leftPhalanx);
+        GroupWithDGeoms rightHand = new GroupWithDGeoms();
+        BoxWithDGeom rightMetacarpal = new BoxWithDGeom(2.5, 2.5, 3.0, fxBody);
+        rightMetacarpal.getTransforms().add(new Translate(-1.25, 1.25, 0));
+        BoxWithDGeom rightPhalanx = new BoxWithDGeom(3.75, 2.5, 3.0, fxBody);
+        rightPhalanx.getTransforms().add(new Translate(-3.75/2, 3.75, 0));
+        rightHand.getChildren().addAll(rightMetacarpal, rightPhalanx);
+        arm.getTransforms().add(new Translate(0, 10, 0));
+        leftHand.getTransforms().addAll(new Translate(-3.75, 20, 0), leftHandRotate);
+        rightHand.getTransforms().addAll(new Translate(3.75, 20, 0), rightHandRotate);
+        grabber.getChildren().addAll(arm, leftHand, rightHand);
+        grabber.getTransforms().addAll(new Translate(-17.75, 18.75, 14), grabberRotate);
+        arm.setMaterial(grabberMaterial);
+        leftMetacarpal.setMaterial(handMaterial);
+        leftPhalanx.setMaterial(handMaterial);
+        rightMetacarpal.setMaterial(handMaterial);
+        rightPhalanx.setMaterial(handMaterial);
+        grabber.updateGeomOffsets();
+        botGroup.getChildren().add(grabber);
 
+        /*
+         * Set the value of the zBase field of the superclass (VirtualBot).
+         *
+         * This is the height to which the bot must be raised so that the wheels rest on the field surface.
+         */
         zBase = 5.08;
 
-        fxBody.setCategoryBits(CBits.BOT);
+        /*
+         * Set collision handling bits for the various bot DGeom elements
+         */
+        fxBody.setCategoryBits(CBits.BOT);                          //  The default
         fxBody.setCollideBits(0xFF);
-        botBottomMesh.setCategoryBits(CBits.BOT_BOTTOM);
+        botBottomMesh.setCategoryBits(CBits.BOT_BOTTOM);            //  Bot bottom collides ONLY with the floor
         botBottomMesh.setCollideBits(CBits.FLOOR);
         intakeGeom.setCategoryBits(CBits.BOT_RING_INTAKE);
         shooterBed.getDGeom().setCategoryBits(CBits.SHOOTER);
@@ -683,15 +803,27 @@ public class UltimateBot extends VirtualBot {
         shooterTop.getDGeom().setCategoryBits(CBits.SHOOTER);
         backShooterRail.getDGeom().setCategoryBits(CBits.SHOOTER);
         shooterWheel.getDGeom().setCategoryBits(CBits.SHOOTER);
-
+        leftMetacarpal.getDGeom().setCategoryBits(CBits.HAND);
+        rightMetacarpal.getDGeom().setCategoryBits(CBits.HAND);
+        arm.getDGeom().setCategoryBits(CBits.ARM);
+        leftPhalanx.getDGeom().setCategoryBits(CBits.HAND);
+        rightPhalanx.getDGeom().setCategoryBits(CBits.HAND);
     }
 
 
+    /**
+     * Override the updateDisplay() method. The superclass method handles positioning bot UI on the field.
+     * Bot mechanisms are handles by the overridden method.
+     */
     @Override
     public synchronized void updateDisplay(){
         super.updateDisplay();
         for (int i=0; i<4; i++) wheelRotates[i].setAngle(wheelRotations[i]);
         shooterElevationRotate.setAngle(shooterElevationAngle);
+        grabberRotate.setAngle(grabberRotation);
+        leftHandRotate.setAngle(leftHandRotation);
+        rightHandRotate.setAngle(rightHandRotation);
+        grabber.updateGeomOffsets();
     }
 
 
@@ -704,18 +836,26 @@ public class UltimateBot extends VirtualBot {
         long o1CBits = o1.getCategoryBits();
         long o2CBits = o2.getCategoryBits();
 
-        boolean o1BotBottom = (o1CBits & CBits.BOT_BOTTOM) != 0,
+        boolean o1Arm = (o1CBits & CBits.ARM) != 0,
+                o2Arm = (o2CBits & CBits.ARM) != 0,
+                o1Hand = (o1CBits & CBits.HAND) != 0,
+                o2Hand = (o2CBits & CBits.HAND) != 0,
+                o1BotBottom = (o1CBits & CBits.BOT_BOTTOM) != 0,
                 o2BotBottom = (o2CBits & CBits.BOT_BOTTOM) != 0,
                 o1Intake = (o1CBits & CBits.BOT_RING_INTAKE) != 0,
                 o2Intake = (o2CBits & CBits.BOT_RING_INTAKE) != 0,
                 o1Ring = (o1CBits & CBits.RINGS) != 0,
                 o2Ring = (o2CBits & CBits.RINGS) != 0,
                 o1Shooter = (o1CBits & CBits.SHOOTER) != 0,
-                o2Shooter = (o1CBits & CBits.SHOOTER) != 0;
+                o2Shooter = (o1CBits & CBits.SHOOTER) != 0,
+                o1Wobble = (o1CBits & CBits.WOBBLES) != 0,
+                o2Wobble = (o2CBits & CBits.WOBBLES) != 0;
 
-        DMatrix3 botRot;
-        DVector3 handNorm = new DVector3();
 
+        /*
+         * If this is a collision between the intake and a ring (and the bot is currently storing less than 3 rings,
+         * disable the ring, remove it from the UI, and add it to the "store" of rings on the bot.
+         */
         if ((o1Ring && o2Intake || o2Ring && o1Intake) && storedRings.size() < 3
                 && (intakeMotor.getPower() > 0.2 && intakeMotor.getDirection() == DcMotorSimple.Direction.FORWARD
                 || intakeMotor.getPower() < -0.2 && intakeMotor.getDirection() == DcMotorSimple.Direction.REVERSE)){
@@ -740,7 +880,67 @@ public class UltimateBot extends VirtualBot {
         for (int i=0; i<numContacts; i++)
         {
             DContact contact = contacts.get(i);
-            if (o1BotBottom || o2BotBottom){
+
+            if (o1Arm && o2Wobble || o2Arm && o1Wobble){
+
+                /*
+                 * Interaction between arm and wobble
+                 *
+                 * If wobble is contacting DISTAL (+y-facing) end of the arm, AND the hand has just closed, AND
+                 * there currently is no grabbed wobble, then grab this wobble as follows: create a hinge joint
+                 * between the bot and the wobble, as well as an angular motor joint.
+                 *
+                 * If there is no grabbed wobble but the other conditions for grabbing are not met, then the arm
+                 * and wobble collide in a normal manner.
+                 *
+                 * If there is already a grabbed wobble, then no interaction between arm and currently-colliding
+                 * wobble.
+                 */
+
+                double armElev = Math.PI * armServo.getInternalPosition();
+                DVector3 armAxisBot = new DVector3(0, Math.cos(armElev), Math.sin(armElev));
+                DVector3 armAxisWorld = new DVector3();
+                fxBody.vectorToWorld(armAxisBot, armAxisWorld);
+                double dot = armAxisWorld.dot(contact.geom.normal);
+                if (o1Arm) dot *= -1;
+
+                if (dot >0.8 && fingersJustClosed && grabbedWobble==null) {       //All conditions for grabbing are met
+                    grabbedWobble = o1Wobble? (FxBody)o1.getBody() : (FxBody)o2.getBody();
+                    wobbleJoint = OdeHelper.createHingeJoint(controller.getWorld());
+                    wobbleJoint.attach(fxBody, grabbedWobble);
+                    DVector3 anchorWorldPos = new DVector3();
+                    fxBody.getRelPointPos(-17.75, 18.75, 14, anchorWorldPos);
+                    wobbleJoint.setAnchor(anchorWorldPos);
+                    DVector3 axisXWorld = new DVector3();
+                    fxBody.vectorToWorld(1, 0, 0, axisXWorld);
+                    wobbleJoint.setAxis(axisXWorld);
+                    wobbleMotor = OdeHelper.createAMotorJoint(controller.getWorld());
+                    wobbleMotor.attach(fxBody, grabbedWobble);
+                    wobbleMotor.setMode(DAMotorJoint.AMotorMode.dAMotorUser);
+                    wobbleMotor.setNumAxes(1);
+                    wobbleMotor.setAxis(0, 1, axisXWorld);
+                    wobbleMotor.setParamFMax(dInfinity);
+                    wobbleMotor.setParamVel(0);
+                    continue;
+                } else if (grabbedWobble == null){      //No grabbed wobble, but conditions for grabbing not met
+                    contact.surface.mode = dContactSoftERP | dContactSoftCFM | dContactApprox1 | dContactBounce;
+                    contact.surface.mu = 0.5;
+                    contact.surface.soft_cfm = 0.00000001;
+                    contact.surface.soft_erp = 0.2;
+                    contact.surface.bounce = 0.3;
+                    contact.surface.bounce_vel = 10;
+                } else {        //There is already a grabbed wobble
+                    continue;
+                }
+
+            } else if (o1Hand && o2Wobble || o2Hand && o1Wobble){
+
+                /*
+                 * Ignore collisions between Hand and Wobble.
+                 */
+
+                continue;
+            } else if (o1BotBottom || o2BotBottom) {
                 /*
                  * NOTE: Contacts involving the bottom surface of the bot are used ONLY to support the bot.
                  *       There is no friction for these contacts. As far as the physics engine is concerned,
@@ -754,7 +954,7 @@ public class UltimateBot extends VirtualBot {
                 contact.surface.soft_erp = 0.2;
                 contact.surface.bounce = 0.3;
                 contact.surface.bounce_vel = 10;
-            } else if (o1Ring && o2Shooter || o2Ring && o1Shooter){
+            } else if (o1Ring && o2Shooter || o2Ring && o1Shooter) {
                 contact.surface.mode = dContactSoftERP | dContactSoftCFM | dContactApprox1 | dContactBounce;
                 contact.surface.mu = 0;
                 contact.surface.soft_cfm = 0.00000001;

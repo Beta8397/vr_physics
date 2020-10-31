@@ -36,7 +36,9 @@ public class CBits {
 
     //UltimateBot
     public static final long BOT_RING_INTAKE = 0x400;
-    public static final long SHOOTER = 0x800;
+    public static final long SHOOTER = 0x2000;
+    public static final long ARM = 0x800;
+    public static final long HAND = 0x1000;
 
     //Two Wheel Bot
     public static final long BOT_FINGERS = 0x20000;

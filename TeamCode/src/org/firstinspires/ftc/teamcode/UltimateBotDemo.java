@@ -7,6 +7,7 @@ import com.qualcomm.robotcore.hardware.ColorSensor;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DistanceSensor;
 import com.qualcomm.robotcore.hardware.Servo;
+import com.qualcomm.robotcore.util.ElapsedTime;
 import org.firstinspires.ftc.robotcore.external.navigation.*;
 
 /**
@@ -16,11 +17,22 @@ import org.firstinspires.ftc.robotcore.external.navigation.*;
 @TeleOp(name = "ultimate bot demo", group = "ultimate bot")
 public class UltimateBotDemo extends LinearOpMode {
 
+    DcMotor m1, m2, m3, m4;
+    BNO055IMU imu;
+    DistanceSensor frontDistance, leftDistance, rightDistance, backDistance;
+    ColorSensor colorSensor;
+    Servo shooterElevServo;
+    Servo shooterTrigServo;
+    DcMotor shooterMotor;
+    DcMotor intakeMotor;
+    Servo grabServo;
+    Servo handServo;
+
     public void runOpMode(){
-        DcMotor m1 = hardwareMap.dcMotor.get("back_left_motor");
-        DcMotor m2 = hardwareMap.dcMotor.get("front_left_motor");
-        DcMotor m3 = hardwareMap.dcMotor.get("front_right_motor");
-        DcMotor m4 = hardwareMap.dcMotor.get("back_right_motor");
+        m1 = hardwareMap.dcMotor.get("back_left_motor");
+        m2 = hardwareMap.dcMotor.get("front_left_motor");
+        m3 = hardwareMap.dcMotor.get("front_right_motor");
+        m4 = hardwareMap.dcMotor.get("back_right_motor");
         m3.setDirection(DcMotor.Direction.REVERSE);
         m4.setDirection(DcMotor.Direction.REVERSE);
         m1.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
@@ -32,11 +44,11 @@ public class UltimateBotDemo extends LinearOpMode {
         m3.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         m4.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
-        BNO055IMU imu = hardwareMap.get(BNO055IMU.class, "imu");
-        DistanceSensor frontDistance = hardwareMap.get(DistanceSensor.class, "front_distance");
-        DistanceSensor leftDistance = hardwareMap.get(DistanceSensor.class, "left_distance");
-        DistanceSensor rightDistance = hardwareMap.get(DistanceSensor.class, "right_distance");
-        DistanceSensor backDistance = hardwareMap.get(DistanceSensor.class, "back_distance");
+        imu = hardwareMap.get(BNO055IMU.class, "imu");
+        frontDistance = hardwareMap.get(DistanceSensor.class, "front_distance");
+        leftDistance = hardwareMap.get(DistanceSensor.class, "left_distance");
+        rightDistance = hardwareMap.get(DistanceSensor.class, "right_distance");
+        backDistance = hardwareMap.get(DistanceSensor.class, "back_distance");
 
         BNO055IMU.Parameters parameters = new BNO055IMU.Parameters();
         parameters.accelerationIntegrationAlgorithm = null;
@@ -49,20 +61,28 @@ public class UltimateBotDemo extends LinearOpMode {
 
         imu.initialize(parameters);
 
-        ColorSensor colorSensor = hardwareMap.colorSensor.get("color_sensor");
+        colorSensor = hardwareMap.colorSensor.get("color_sensor");
 
-        Servo shooterElevServo = hardwareMap.get(Servo.class, "shooter_elev_servo");
-        Servo shooterTrigServo = hardwareMap.get(Servo.class, "shooter_trig_servo");
-        DcMotor intakeMotor = hardwareMap.get(DcMotor.class, "intake_motor");
-        DcMotor shooterMotor = hardwareMap.get(DcMotor.class, "shooter_motor");
+        shooterElevServo = hardwareMap.get(Servo.class, "shooter_elev_servo");
+        shooterTrigServo = hardwareMap.get(Servo.class, "shooter_trig_servo");
+        intakeMotor = hardwareMap.get(DcMotor.class, "intake_motor");
+        shooterMotor = hardwareMap.get(DcMotor.class, "shooter_motor");
         intakeMotor.setPower(1);
         shooterMotor.setPower(0.8);
+
+        grabServo = hardwareMap.get(Servo.class, "arm_servo");
+        handServo = hardwareMap.get(Servo.class, "hand_servo");
 
 
         telemetry.addData("Press Start When Ready","");
         telemetry.update();
 
         gamepad1.setJoystickDeadzone(0.05f);
+
+        ElapsedTime grabTimer = new ElapsedTime();
+        ElapsedTime handTimer = new ElapsedTime();
+        float grabPos = 0;
+        float handPos = 0;
 
         waitForStart();
         while (opModeIsActive()){
@@ -93,6 +113,25 @@ public class UltimateBotDemo extends LinearOpMode {
             double shooterElev = 0.5 * (1 + gamepad1.right_stick_y);
             shooterElevServo.setPosition(shooterElev);
 
+            if (gamepad1.dpad_down && grabTimer.seconds()>0.05){
+                grabTimer.reset();
+                grabPos = (float)Math.min(1.0, grabPos + 0.05);
+            } else if (gamepad1.dpad_up && grabTimer.seconds()>0.05){
+                grabTimer.reset();
+                grabPos = (float)Math.max(0, grabPos - 0.05);
+            }
+
+            if (gamepad1.dpad_right && handTimer.seconds()>0.05){
+                grabTimer.reset();
+                handPos = (float)Math.min(1.0, handPos + 0.05);
+            } else if (gamepad1.dpad_left && handTimer.seconds()>0.05){
+                grabTimer.reset();
+                handPos = (float)Math.max(0, handPos - 0.05);
+            }
+
+            grabServo.setPosition(grabPos);
+            handServo.setPosition(handPos);
+
             telemetry.addData("GP 1 Lt stick controls fwd/strafe.","");
             telemetry.addData("GP 1 triggers control turn.","");
             telemetry.addData("GP 1 Rt stick controls shooter elev.","");
@@ -107,7 +146,6 @@ public class UltimateBotDemo extends LinearOpMode {
             telemetry.addData("Back Distance", " %.1f", backDistance.getDistance(DistanceUnit.CM));
             telemetry.addData("Encoders"," %d %d %d %d", m1.getCurrentPosition(), m2.getCurrentPosition(),
                     m3.getCurrentPosition(), m4.getCurrentPosition());
-            telemetry.addData("ShooterElev", shooterElev);
             telemetry.update();
         }
         m1.setPower(0);
