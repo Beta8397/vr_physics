@@ -80,8 +80,8 @@ public class UltimateBot extends VirtualBot {
 
     GroupWithDGeoms grabber;
     private double grabberRotation = 0.0;
-    private double leftHandRotation = 0.0;
-    private double rightHandRotation = 0.0;
+    private double leftHandRotation = 180.0;
+    private double rightHandRotation = -180.0;
     private Rotate grabberRotate = new Rotate(grabberRotation, 0, 0, 0, Rotate.X_AXIS);
     private Rotate leftHandRotate = new Rotate(leftHandRotation, 0, 0, 0, Rotate.Z_AXIS);
     private Rotate rightHandRotate = new Rotate(rightHandRotation, 0, 0, 0, Rotate.Z_AXIS);
@@ -91,8 +91,8 @@ public class UltimateBot extends VirtualBot {
     private FxBody grabbedWobble = null;
     private DHingeJoint wobbleJoint = null;
     private DAMotorJoint wobbleMotor = null;
-    private boolean fingersJustClosed = true;
-    private double priorFingerPos = 1;
+    private boolean fingersJustClosed = false;
+    private double priorFingerPos = 0;
 
     private double[][] tWR; //Transform from wheel motion to robot motion
 
@@ -402,13 +402,13 @@ public class UltimateBot extends VirtualBot {
 
         double fingerPos = handServo.getInternalPosition();
         grabberRotation = 180 * armServo.getInternalPosition();
-        leftHandRotation = 180 * fingerPos;
-        rightHandRotation = -180 * fingerPos;
+        leftHandRotation =  180.0 - 180.0 * fingerPos;
+        rightHandRotation = -180.0 + 180.0 * fingerPos;
 
         /*
          * In the handleContacts method, a wobble can be grabbed only if fingersJustClosed is true.
          */
-        fingersJustClosed = fingerPos <= 0.01 && priorFingerPos > 0.01;
+        fingersJustClosed = fingerPos >=0.99 && priorFingerPos <0.99;
         priorFingerPos = fingerPos;
 
         /*
@@ -417,7 +417,7 @@ public class UltimateBot extends VirtualBot {
          * the grabber arm.
          */
         if (grabbedWobble != null){
-            if (fingerPos > 0.01){
+            if (fingerPos <0.99){
                 wobbleJoint.destroy();
                 wobbleMotor.destroy();
                 grabbedWobble = null;

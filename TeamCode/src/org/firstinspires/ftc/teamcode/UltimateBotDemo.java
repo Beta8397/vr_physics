@@ -74,6 +74,8 @@ public class UltimateBotDemo extends LinearOpMode {
         handServo = hardwareMap.get(Servo.class, "hand_servo");
 
 
+
+
         telemetry.addData("Press Start When Ready","");
         telemetry.update();
 
@@ -82,7 +84,9 @@ public class UltimateBotDemo extends LinearOpMode {
         ElapsedTime grabTimer = new ElapsedTime();
         ElapsedTime handTimer = new ElapsedTime();
         float grabPos = 0;
-        float handPos = 0;
+
+        float handPos = 1;
+        handServo.setPosition(handPos);
 
         waitForStart();
         while (opModeIsActive()){
