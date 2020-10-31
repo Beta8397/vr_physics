@@ -34,7 +34,8 @@ public class ExampleAuto extends MecBotAutonomous {
         shooterElevServo = hardwareMap.get(Servo.class, "shooter_elev_servo");
         shooterMotor = hardwareMap.get(DcMotor.class, "shooter_motor");
 
-        sleep(50);
+        handServo.setPosition(1);
+        sleep(300);
         armServo.setPosition(0.75);
         shooterMotor.setPower(0.8);
 
@@ -46,7 +47,7 @@ public class ExampleAuto extends MecBotAutonomous {
 
         armServo.setPosition(0.3);
         sleep(300);
-        handServo.setPosition(1.0);
+        handServo.setPosition(0);
         sleep(50);
         armServo.setPosition(0.8);
 
