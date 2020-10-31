@@ -533,7 +533,7 @@ public class VirtualRobotController {
                 opMode.internalPostInitLoop();
 
                 try {
-                    Thread.sleep(0, 1);
+                    Thread.sleep(10, 0);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
@@ -553,7 +553,7 @@ public class VirtualRobotController {
                 opMode.internalPostLoop();
 
                 try {
-                    Thread.sleep(0, 1);
+                    Thread.sleep(10, 0);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
