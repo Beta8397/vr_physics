@@ -121,16 +121,16 @@ public class UltimateGoalField extends FtcField {
         }
 
         DMass wobbleMass = OdeHelper.createMass();
-        wobbleMass.setCylinderTotal(1000, 3, 10, 6.25);
+        wobbleMass.setCylinderTotal(250, 3, 10, 6.25);
 
         for (int i=0; i<4; i++) {
-            Group wobbleGroup = Parts.wobble(i<2? Parts.AllianceColor.BLUE : Parts.AllianceColor.RED);
             wobbles[i] = FxBody.newInstance(world, space);
-            wobbles[i].setNode(wobbleGroup, true);
+            GroupWithDGeoms wobbleGroup = Parts.wobble(i<2? Parts.AllianceColor.BLUE : Parts.AllianceColor.RED, wobbles[i]);
+            wobbles[i].setNode(wobbleGroup, false);
             wobbles[i].setMass(wobbleMass);
             double x = 60 * (1 + i%2);
             if (i<2) x *= -1;
-            wobbles[i].setPosition(x, -120, 3);
+            wobbles[i].setPosition(x, -121, 3);
             subSceneGroup.getChildren().add(wobbleGroup);
             wobbles[i].setDamping(0.05, 0.05);
             wobbles[i].updateNodeDisplay();
@@ -176,25 +176,26 @@ public class UltimateGoalField extends FtcField {
 
     @Override
     public void reset() {
-        for (int i=0; i<rings.size(); i++){
-            FxBody ring = rings.get(i);
-            if (i<4){
-                //Initial Rings on the field
-                ring.setPosition(92.7, -57.2, 1 + 2*i);
-                DMatrix3 rot = new DMatrix3();
-                DRotation.dRFromAxisAndAngle(rot, 0, 0, 1, 0);
-                ring.setRotation(rot);
-                if (!subSceneGroup.getChildren().contains(ring.getNode())) subSceneGroup.getChildren().add(ring.getNode());
-                ring.getGeom("ring").enable();
-                ring.enable();
-            } else {
-                //Initial Rings on the bot
-                if (subSceneGroup.getChildren().contains(ring.getNode())) subSceneGroup.getChildren().remove(ring.getNode());
-                ring.getGeom("ring").disable();
-                ring.disable();
-                ring.setPosition(0,0,0);
-            }
-        }
+//        for (int i=0; i<rings.size(); i++){
+//            FxBody ring = rings.get(i);
+//            if (i<4){
+//                //Initial Rings on the field
+//                ring.setPosition(92.7, -57.2, 1 + 2*i);
+//                DMatrix3 rot = new DMatrix3();
+//                DRotation.dRFromAxisAndAngle(rot, 0, 0, 1, 0);
+//                ring.setRotation(rot);
+//                if (!subSceneGroup.getChildren().contains(ring.getNode())) subSceneGroup.getChildren().add(ring.getNode());
+//                ring.getGeom("ring").enable();
+//                ring.enable();
+//            } else {
+//                //Initial Rings on the bot
+//                if (subSceneGroup.getChildren().contains(ring.getNode())) subSceneGroup.getChildren().remove(ring.getNode());
+//                ring.getGeom("ring").disable();
+//                ring.disable();
+//                ring.setPosition(0,0,0);
+//            }
+//        }
+        System.out.println("NO FIELD RESET FOR ULTIMATE GOAL: STOP AND RESTART APP.");
     }
 
     @Override
