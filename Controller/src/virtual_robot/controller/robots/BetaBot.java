@@ -45,7 +45,7 @@ public class BetaBot extends VirtualBot {
     //Max possible force (in Robot-X direction) at any wheel (each wheel gets 1/4 of robot weight)
     private final float MAX_WHEEL_X_FORCE = TOTAL_MASS * GRAVITY * FIELD_FRICTION_COEFF / (4.0f * (float)Math.sqrt(2));
 
-    public final MotorType motorType = MotorType.Neverest40;
+    public final MotorType motorType = MotorType.NeverestOrbital20;
     private DcMotorImpl[] motors = null;
     private DcMotorImpl liftMotor = null;
     private BNO055IMUImpl imu = null;

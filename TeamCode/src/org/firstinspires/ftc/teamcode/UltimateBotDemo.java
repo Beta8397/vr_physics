@@ -7,6 +7,7 @@ import com.qualcomm.robotcore.hardware.ColorSensor;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DistanceSensor;
 import com.qualcomm.robotcore.hardware.Servo;
+import com.qualcomm.robotcore.util.ElapsedTime;
 import org.firstinspires.ftc.robotcore.external.navigation.*;
 
 /**
@@ -21,8 +22,8 @@ public class UltimateBotDemo extends LinearOpMode {
         DcMotor m2 = hardwareMap.dcMotor.get("front_left_motor");
         DcMotor m3 = hardwareMap.dcMotor.get("front_right_motor");
         DcMotor m4 = hardwareMap.dcMotor.get("back_right_motor");
-        m1.setDirection(DcMotor.Direction.REVERSE);
-        m2.setDirection(DcMotor.Direction.REVERSE);
+        m3.setDirection(DcMotor.Direction.REVERSE);
+        m4.setDirection(DcMotor.Direction.REVERSE);
         m1.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         m2.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         m3.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
@@ -58,11 +59,19 @@ public class UltimateBotDemo extends LinearOpMode {
         intakeMotor.setPower(1);
         shooterMotor.setPower(0.8);
 
+        Servo grabServo = hardwareMap.get(Servo.class, "arm_servo");
+        Servo handServo = hardwareMap.get(Servo.class, "hand_servo");
+
 
         telemetry.addData("Press Start When Ready","");
         telemetry.update();
 
         gamepad1.setJoystickDeadzone(0.05f);
+
+        ElapsedTime grabTimer = new ElapsedTime();
+        ElapsedTime handTimer = new ElapsedTime();
+        float grabPos = 0;
+        float handPos = 0;
 
         waitForStart();
         while (opModeIsActive()){
@@ -92,6 +101,25 @@ public class UltimateBotDemo extends LinearOpMode {
 
             double shooterElev = 0.5 * (1 + gamepad1.right_stick_y);
             shooterElevServo.setPosition(shooterElev);
+
+            if (gamepad1.dpad_down && grabTimer.seconds()>0.05){
+                grabTimer.reset();
+                grabPos = (float)Math.min(1.0, grabPos + 0.05);
+            } else if (gamepad1.dpad_up && grabTimer.seconds()>0.05){
+                grabTimer.reset();
+                grabPos = (float)Math.max(0, grabPos - 0.05);
+            }
+
+            if (gamepad1.dpad_right && handTimer.seconds()>0.05){
+                grabTimer.reset();
+                handPos = (float)Math.min(1.0, handPos + 0.05);
+            } else if (gamepad1.dpad_left && handTimer.seconds()>0.05){
+                grabTimer.reset();
+                handPos = (float)Math.max(0, handPos - 0.05);
+            }
+
+            grabServo.setPosition(grabPos);
+            handServo.setPosition(handPos);
 
             telemetry.addData("GP 1 Lt stick controls fwd/strafe.","");
             telemetry.addData("GP 1 triggers control turn.","");
