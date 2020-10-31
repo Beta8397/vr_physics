@@ -42,7 +42,7 @@ public abstract class LinearOpMode extends OpMode {
         // Otherwise, yield back our thread scheduling quantum and give other threads at
         // our priority level a chance to run
         try{
-            Thread.sleep(0,1);
+            Thread.sleep(10,0);
         } catch(InterruptedException e){
             Thread.currentThread().interrupt();
         }

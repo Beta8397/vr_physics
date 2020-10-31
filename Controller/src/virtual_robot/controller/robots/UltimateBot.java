@@ -382,8 +382,10 @@ public class UltimateBot extends VirtualBot {
          * Trigger servo.
          */
 
+        double shooterTrigPos = shooterTrigServo.getInternalPosition();
+
         if (shooterCocked){
-            if (shooterTrigServo.getInternalPosition() > 0.75){
+            if (shooterTrigPos > 0.75){
                 if (storedRings.size() > 0) shoot();
                 shooterCocked = false;
             }
@@ -392,6 +394,7 @@ public class UltimateBot extends VirtualBot {
                 shooterCocked = true;
             }
         }
+
 
         /*
          * Grabber
@@ -429,6 +432,7 @@ public class UltimateBot extends VirtualBot {
     }
 
     private void shoot(){
+
         if (storedRings.size() == 0) return;
         double shooterMotorPower = shooterMotor.getPower();
         if (shooterMotor.getDirection() == DcMotorSimple.Direction.REVERSE) shooterMotorPower *= -1;

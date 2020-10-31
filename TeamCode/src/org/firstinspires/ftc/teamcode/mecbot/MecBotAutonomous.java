@@ -124,6 +124,14 @@ public abstract class MecBotAutonomous extends LinearOpMode {
             float headingOffset = (float) AngleUtils.normalizeRadians(targetHeading - bot.getPose().theta);
             float va = targetHeadingChangeRate + headingOffset * HEADING_CORRECTION_FACTOR;
 
+
+//            System.out.printf("Segment: %d  s: %.3f  TargetPose: %.2f  %.2f   ActualPose: %.2f  %.2f\n", spline.getIndex(),
+//                    s0, targetPos.get(0), targetPos.get(1), bot.getPose().x, bot.getPose().y);
+//            System.out.printf("D1: %.2f  %.2f   D2: %.2f  %.2f\n", d1.get(0), d1.get(1), d2.get(0), d2.get(1));
+//            System.out.printf("TH: %.1f  THCR: %.2f  H: %.1f  HO: %.1f  va: %.1f\n\n", Math.toDegrees(targetHeading),
+//                    Math.toDegrees(targetHeadingChangeRate), Math.toDegrees(bot.getPose().theta),
+//                        Math.toDegrees(headingOffset), Math.toDegrees(va));
+
             bot.setDriveSpeed(totalVBot.get(0), totalVBot.get(1), va);
         }
 
