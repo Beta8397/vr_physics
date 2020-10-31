@@ -22,6 +22,7 @@ import javafx.scene.transform.Rotate;
 import javafx.scene.transform.Translate;
 import javafx.util.Callback;
 import org.firstinspires.ftc.robotcore.external.Telemetry;
+import org.firstinspires.ftc.teamcode.UltimateBotDemo;
 import org.ode4j.ode.*;
 import org.reflections.Reflections;
 import virtual_robot.config.Config;
@@ -35,6 +36,7 @@ import javafx.scene.paint.Color;
 import com.qualcomm.hardware.bosch.BNO055IMU;
 import com.qualcomm.robotcore.hardware.DcMotorImpl;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
+import virtual_robot.controller.robots.UltimateBot;
 import virtual_robot.ftcfield.FtcField;
 import virtual_robot.ftcfield.SkyStoneField;
 import virtual_robot.ftcfield.UltimateGoalField;
@@ -244,7 +246,7 @@ public class VirtualRobotController {
                 validConfigClasses.add(c);
         }
         cbxConfig.setItems(validConfigClasses);
-        cbxConfig.setValue(validConfigClasses.get(0));
+        cbxConfig.setValue(UltimateBot.class);
 
         cbxConfig.setCellFactory(new Callback<ListView<Class<?>>, ListCell<Class<?>>>() {
             @Override
@@ -375,7 +377,11 @@ public class VirtualRobotController {
             }
         });
 
-        cbxOpModes.setValue(cbxOpModes.getItems().get(0));
+        if (cbxOpModes.getItems().contains(UltimateBotDemo.class)){
+            cbxOpModes.setValue(UltimateBotDemo.class);
+        } else {
+            cbxOpModes.setValue(cbxOpModes.getItems().get(0));
+        }
     }
 
 
