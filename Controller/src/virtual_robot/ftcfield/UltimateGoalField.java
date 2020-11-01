@@ -13,6 +13,7 @@ import odefx.FxBody;
 import odefx.FxBodyHelper;
 import odefx.node_with_geom.GroupWithDGeoms;
 import org.ode4j.math.DMatrix3;
+import org.ode4j.math.DVector3;
 import org.ode4j.ode.*;
 import util3d.Parts;
 import util3d.Util3D;
@@ -21,6 +22,7 @@ import virtual_robot.controller.VirtualRobotController;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 import static org.ode4j.ode.OdeConstants.*;
 
@@ -35,6 +37,8 @@ public class UltimateGoalField extends FtcField {
     static DMass ringMass = OdeHelper.createMass();
 
     FxBody[] wobbles = new FxBody[4];
+
+    private Random rand = new Random();
 
     public static UltimateGoalField getInstance(Group group, DWorld world, DSpace space){
         if (ultimateGoalFieldInstance == null){
@@ -239,12 +243,23 @@ public class UltimateGoalField extends FtcField {
 
     @Override
     public void preStepProcess() {
-//        for (FxBody2 s: rings){
-//            DVector3C linVel = s.getLinearVel();
-//            DVector3C angVel = s.getAngularVel();
-//            s.addForce(linVel.reScale(-0.1*s.getMass().getMass()));
-//            s.addTorque(angVel.reScale(-0.1*s.getMass().getI().get22()));
-//        }
+        for (int i = 0; i < rings.size(); i++) {
+            DVector3 ringPos = (DVector3) rings.get(i).dBodyGetPosition();
+            double absX = Math.abs(ringPos.get0());
+            double absY = Math.abs(ringPos.get1());
+            double z = ringPos.get2();
+            if ((z < 10 && (absX > HALF_FIELD_WIDTH || absY > HALF_FIELD_WIDTH)) &&
+                    rings.get(i).getGeom("ring").isEnabled()) {
+                rings.get(i).setPosition(50, HALF_FIELD_WIDTH, 40);
+                double rotationAngle = Math.PI/2 * 1.5 * (0.5 - rand.nextDouble());
+                DMatrix3 rotation = new DMatrix3();
+                DRotation.dRFromAxisAndAngle(rotation, 0, 1, 0, rotationAngle);
+                rings.get(i).setRotation(rotation);
+                double linVelDir = Math.PI/6.0 * (0.5 - rand.nextDouble());
+                rings.get(i).setLinearVel(100 * Math.sin(linVelDir), -100 * Math.cos(linVelDir), 0);
+                rings.get(i).setAngularVel(12.0*Math.sin(rotationAngle), 0, -12*Math.cos(rotationAngle));
+            }
+        }
     }
 
 }
