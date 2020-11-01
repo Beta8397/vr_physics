@@ -797,9 +797,9 @@ public class UltimateBot extends VirtualBot {
          * Set collision handling bits for the various bot DGeom elements
          */
         fxBody.setCategoryBits(CBits.BOT);                          //  The default
-        fxBody.setCollideBits(0xFF);
-        botBottomMesh.setCategoryBits(CBits.BOT_BOTTOM);            //  Bot bottom collides ONLY with the floor
-        botBottomMesh.setCollideBits(CBits.FLOOR);
+        fxBody.setCollideBits(0xFFFFFFFFFFFFFFFFL);                 //  Bot collides with everything by default
+        botBottomMesh.setCategoryBits(CBits.BOT_BOTTOM);
+        botBottomMesh.setCollideBits(CBits.FLOOR);                  //  Bot bottom collides ONLY with the floor
         intakeGeom.setCategoryBits(CBits.BOT_RING_INTAKE);
         shooterBed.getDGeom().setCategoryBits(CBits.SHOOTER);
         leftShooterRail.getDGeom().setCategoryBits(CBits.SHOOTER);
@@ -828,6 +828,7 @@ public class UltimateBot extends VirtualBot {
         leftHandRotate.setAngle(leftHandRotation);
         rightHandRotate.setAngle(rightHandRotation);
         grabber.updateGeomOffsets();
+        shooter.updateGeomOffsets();
     }
 
 
@@ -851,7 +852,7 @@ public class UltimateBot extends VirtualBot {
                 o1Ring = (o1CBits & CBits.RINGS) != 0,
                 o2Ring = (o2CBits & CBits.RINGS) != 0,
                 o1Shooter = (o1CBits & CBits.SHOOTER) != 0,
-                o2Shooter = (o1CBits & CBits.SHOOTER) != 0,
+                o2Shooter = (o2CBits & CBits.SHOOTER) != 0,
                 o1Wobble = (o1CBits & CBits.WOBBLES) != 0,
                 o2Wobble = (o2CBits & CBits.WOBBLES) != 0;
 
