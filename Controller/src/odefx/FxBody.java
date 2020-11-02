@@ -239,7 +239,12 @@ public class FxBody extends DxBody {
         List<DJoint> joints = new ArrayList<>();
         int numJoints = getNumJoints();
         for (int i=0; i<numJoints; i++){
-            getJoint(i).destroy();
+            joints.add(getJoint(i));
+        }
+        while (joints.size() > 0){
+            DJoint j = joints.get(0);
+            joints.remove(0);
+            j.destroy();
         }
 
         //Next, destroy all of the children
