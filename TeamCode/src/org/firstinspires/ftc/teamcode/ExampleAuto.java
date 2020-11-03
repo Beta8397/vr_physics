@@ -53,7 +53,7 @@ public class ExampleAuto extends MecBotAutonomous {
 
         driveSpline(50, true, spline2);
 
-        turnToHeading(90, 0.1f, 2, 30);
+        turnToHeading(90, 0.5f, 2, 30);
 
         shooterElevServo.setPosition(0.15);
         sleep(300);

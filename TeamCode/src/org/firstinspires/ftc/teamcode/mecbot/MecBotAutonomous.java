@@ -13,7 +13,7 @@ import org.firstinspires.ftc.teamcode.util.ParametricFunction2D;
 public abstract class MecBotAutonomous extends LinearOpMode {
 
     public static final float STD_TURN_COEFF = 2.0f;        //Proportionate coefficient for turning
-    private final float HEADING_CORRECTION_FACTOR = 2.0f;
+    private final float HEADING_CORRECTION_FACTOR = 0.5f;
     private final float DISTANCE_CORRECTION_FACTOR = 2.0f;
     public static final float STD_MAX_TURN_SPEED = 1.0f;    //Radians per sec
 
@@ -95,7 +95,10 @@ public abstract class MecBotAutonomous extends LinearOpMode {
             }
             bot.setDriveSpeed(0, 0, va);
         }
+        System.out.println("Heading: " + Math.toDegrees(bot.getPose().theta));
         bot.setDrivePower(0, 0, 0);
+        bot.updateOdometry();
+        System.out.println("Heading: " + Math.toDegrees(bot.getPose().theta));
     }
 
 
