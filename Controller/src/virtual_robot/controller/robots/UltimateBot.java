@@ -416,6 +416,8 @@ public class UltimateBot extends VirtualBot {
             if (fingerPos <0.99){
                 wobbleJoint.destroy();
                 wobbleMotor.destroy();
+                wobbleJoint = null;
+                wobbleMotor = null;
                 grabbedWobble = null;
             } else {
                 double servoAngle = armServo.getInternalPosition() * Math.PI;
@@ -830,6 +832,27 @@ public class UltimateBot extends VirtualBot {
     public void powerDownAndReset(){
         for (int i=0; i<4; i++) motors[i].stopAndReset();
         imu.close();
+        if (wobbleJoint != null) {
+            wobbleJoint.destroy();
+            wobbleJoint = null;
+        }
+        if (wobbleMotor != null) {
+            wobbleMotor.destroy();
+            wobbleMotor = null;
+        }
+        grabbedWobble = null;
+        handServo.setDirection(Servo.Direction.FORWARD);
+        handServo.setPosition(0);
+        leftHandRotation = 180;
+        rightHandRotation = -180;
+        Platform.runLater(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        updateDisplay();
+                    }
+                }
+        );
     }
 
     public void handleContacts(int numContacts, DGeom o1, DGeom o2, DContactBuffer contacts, DJointGroup contactGroup){
