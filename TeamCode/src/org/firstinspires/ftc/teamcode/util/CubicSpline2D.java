@@ -312,4 +312,33 @@ public class CubicSpline2D {
      */
     public float getPathLength(int i) { return (float)pathLengths[i]; }
 
+    /**
+     * Get the total path length for this spline
+     * @return Total path length
+     */
+    public float getTotalPathLength() { return getPathLength(numSegments); }
+
+
+    /**
+     * Get heading change along the spline per unit path length.
+     * Multiply this by travel speed to get heading change per unit time.
+     * @param i         Spline segment
+     * @param s         Parameter (0 <= s <= 1)
+     * @return
+     */
+    public float headingChangePerUnitPathLength(int i, float s){
+        VectorF d1 = d1(i, s);
+        VectorF d2 = d2(i, s);
+        return (d2.get(1) * d1.get(0) - d2.get(0) * d1.get(1)) / (float) Math.pow(d1.dotProduct(d1), 1.5f);
+    }
+
+    /**
+     * Get heading change along the spline per unit path length (current segment).
+     * Multiply this by travel speed to get heading change per unit time.
+     * @param s         Parameter (0 <= s <= 1)
+     * @return
+     */
+    public float headingChangePerUnitPathLength(float s){
+        return headingChangePerUnitPathLength(this.getIndex(), s);
+    }
 }

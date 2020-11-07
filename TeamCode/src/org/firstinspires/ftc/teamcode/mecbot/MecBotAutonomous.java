@@ -1,10 +1,15 @@
 package org.firstinspires.ftc.teamcode.mecbot;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.util.ElapsedTime;
 import org.firstinspires.ftc.robotcore.external.matrices.VectorF;
 import org.firstinspires.ftc.teamcode.util.AngleUtils;
 import org.firstinspires.ftc.teamcode.util.CubicSpline2D;
 import org.firstinspires.ftc.teamcode.util.ParametricFunction2D;
+import org.firstinspires.ftc.teamcode.util.Pose;
+
+import java.util.LinkedList;
+import java.util.List;
 
 /**
  * An abstract class that extends LinearOpMode and provides navigation methods that can be called by autonomous op modes
@@ -84,21 +89,30 @@ public abstract class MecBotAutonomous extends LinearOpMode {
         float targetHeadingRadians = targetHeadingDegrees * (float) Math.PI / 180;
         float toleranceRadians = toleranceDegrees * (float) Math.PI / 180;
         float maxRadiansPerSec = maxDegreesPerSec * (float)Math.PI/180;
+        float oldHeading = bot.updateOdometry().theta;
+        ElapsedTime et = new ElapsedTime();
         while (opModeIsActive()) {
             bot.updateOdometry();
             float currentHeading = bot.getPose().theta;
             float angleDiff = (float) AngleUtils.normalizeRadians(targetHeadingRadians - currentHeading);
-            if (Math.abs(angleDiff) < toleranceRadians) break;
+            if (currentHeading == oldHeading){
+                if (et.milliseconds() >= 50){
+                    if (Math.abs(angleDiff) < toleranceRadians) break;
+                    et.reset();
+                }
+            } else {
+                float headingChange = (float)AngleUtils.normalizeRadians(currentHeading - oldHeading);
+                if (Math.abs(angleDiff) < toleranceRadians && Math.abs(headingChange) < toleranceRadians / 10.0) break;
+                et.reset();
+            }
+            oldHeading = currentHeading;
             float va = propCoeff * angleDiff;
-            if (Math.abs(va) > maxRadiansPerSec){
-                va = (float)Math.signum(va) * maxRadiansPerSec;
+            if (Math.abs(va) > maxRadiansPerSec) {
+                va = Math.signum(va) * maxRadiansPerSec;
             }
             bot.setDriveSpeed(0, 0, va);
         }
-        System.out.println("Heading: " + Math.toDegrees(bot.getPose().theta));
         bot.setDrivePower(0, 0, 0);
-        bot.updateOdometry();
-        System.out.println("Heading: " + Math.toDegrees(bot.getPose().theta));
     }
 
 
@@ -126,14 +140,6 @@ public abstract class MecBotAutonomous extends LinearOpMode {
             float targetHeadingChangeRate = (d2.get(1) * d1.get(0) - d2.get(0) * d1.get(1)) / (float) Math.pow(d1.dotProduct(d1), 1.5f) * speed;
             float headingOffset = (float) AngleUtils.normalizeRadians(targetHeading - bot.getPose().theta);
             float va = targetHeadingChangeRate + headingOffset * HEADING_CORRECTION_FACTOR;
-
-
-//            System.out.printf("Segment: %d  s: %.3f  TargetPose: %.2f  %.2f   ActualPose: %.2f  %.2f\n", spline.getIndex(),
-//                    s0, targetPos.get(0), targetPos.get(1), bot.getPose().x, bot.getPose().y);
-//            System.out.printf("D1: %.2f  %.2f   D2: %.2f  %.2f\n", d1.get(0), d1.get(1), d2.get(0), d2.get(1));
-//            System.out.printf("TH: %.1f  THCR: %.2f  H: %.1f  HO: %.1f  va: %.1f\n\n", Math.toDegrees(targetHeading),
-//                    Math.toDegrees(targetHeadingChangeRate), Math.toDegrees(bot.getPose().theta),
-//                        Math.toDegrees(headingOffset), Math.toDegrees(va));
 
             bot.setDriveSpeed(totalVBot.get(0), totalVBot.get(1), va);
         }
@@ -218,6 +224,25 @@ public abstract class MecBotAutonomous extends LinearOpMode {
         }
         bot.setDriveSpeed(0, 0,0);
         bot.updateOdometry();
+    }
+
+    public float waitUntilResting(float linearTol, float angleTolDegrees, float maxLatencyMillis){
+        float angleTolRadians = (float)Math.toRadians(angleTolDegrees);
+        Pose pose = bot.updateOdometry();
+        ElapsedTime et = new ElapsedTime();
+        ElapsedTime totalWaitTime = new ElapsedTime();
+        while (opModeIsActive()){
+            bot.updateOdometry();
+            if (et.milliseconds() < maxLatencyMillis) continue;
+            et.reset();
+            Pose newPose = bot.getPose();
+            float deltaX = newPose.x - pose.x;
+            float deltaY = newPose.y - pose.y;
+            float deltaTheta = (float)AngleUtils.normalizeRadians(newPose.theta - pose.theta);
+            if (Math.abs(deltaX) < linearTol && Math.abs(deltaY) < linearTol && Math.abs(deltaTheta) < angleTolRadians) break;
+            pose = newPose;
+        }
+        return (float)totalWaitTime.milliseconds();
     }
 
 

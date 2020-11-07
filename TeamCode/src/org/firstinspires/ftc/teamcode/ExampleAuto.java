@@ -53,7 +53,9 @@ public class ExampleAuto extends MecBotAutonomous {
 
         driveSpline(50, true, spline2);
 
-        turnToHeading(90, 0.5f, 2, 30);
+//        System.out.println("Wait Time: " + waitUntilResting(0.2f, 0.2f, 50));
+
+        turnToHeading(90, 0.5f, 4, 30);
 
         shooterElevServo.setPosition(0.15);
         sleep(300);
@@ -69,6 +71,9 @@ public class ExampleAuto extends MecBotAutonomous {
         sleep(300);
         triggerServo.setPosition(1);
         sleep(1000);
+
+        bot.updateOdometry();
+        System.out.println("Heading: " + Math.toDegrees(bot.getPose().theta));
     }
 
 }
