@@ -8,6 +8,8 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.teamcode.mecbot.MecBotTeleOp;
 import org.firstinspires.ftc.teamcode.util.gamepad.ButtonToggle;
 
+import static org.firstinspires.ftc.teamcode.goalbot.GoalBot.IntakeState.OFF;
+
 @TeleOp(name = "GoalBotTeleOp", group = "GoalBot")
 public class GoalbotTeleop extends MecBotTeleOp {
 
@@ -15,7 +17,7 @@ public class GoalbotTeleop extends MecBotTeleOp {
 
     GoalBot bot= new GoalBot();
 
-    private GoalBot.IntakeState intakeState = GoalBot.IntakeState.OFF;
+    private GoalBot.IntakeState intakeState = OFF;
 
     ButtonToggle toggleA1 = new ButtonToggle(ButtonToggle.Mode.PRESSED) {
         @Override
@@ -76,6 +78,7 @@ public class GoalbotTeleop extends MecBotTeleOp {
                 if (grabberClosed) bot.setGrabberClosed();
                 else bot.setGrabberOpen();
             }
+            telemetry.addData("GRABBER (A2)", " %s", grabberClosed? "CLOSED" : "OPEN");
 
             if (toggleRightBumper2.update()) {
                 shooterOn = !shooterOn;
@@ -84,6 +87,7 @@ public class GoalbotTeleop extends MecBotTeleOp {
             if (toggleLeftBumper2.update()) {
                 shooterHigh = !shooterHigh;
             }
+
             if (shooterOn) {
                 if (shooterHigh) {
                     bot.setShooterPowerHigh();
@@ -94,6 +98,8 @@ public class GoalbotTeleop extends MecBotTeleOp {
                 bot.setShooterPower(0);
             }
 
+            telemetry.addData("SHOOTER (Rt BMP 2)", " %s", shooterOn? "ON" : "OFF");
+            telemetry.addData("SHOOTER PWR (Lt BMP 2)", " %s", shooterHigh? "HIGH" : "NORMAL");
             float shooterRPM = (float)bot.shooter.getVelocity(AngleUnit.DEGREES) / 6;
             telemetry.addData("shooter_RPM", shooterRPM);
 
@@ -137,16 +143,17 @@ public class GoalbotTeleop extends MecBotTeleOp {
                 if (gamepad1.b) {
                     intakeState = GoalBot.IntakeState.REV;
                 } else if (aToggled) {
-                    intakeState = GoalBot.IntakeState.OFF;
+                    intakeState = OFF;
                 }
                 break;
             case REV:
                 if (!gamepad1.b) {
-                    intakeState = GoalBot.IntakeState.OFF;
+                    intakeState = OFF;
                 }
                 break;
         }
         bot.setIntake(intakeState);
+        telemetry.addData("INTAKE (A1, B1)", intakeState);
 
     }
 }
