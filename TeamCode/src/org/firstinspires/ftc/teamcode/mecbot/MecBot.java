@@ -2,6 +2,7 @@ package org.firstinspires.ftc.teamcode.mecbot;
 
 import com.qualcomm.hardware.bosch.BNO055IMU;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
@@ -36,10 +37,10 @@ public class MecBot {
     /*
      * Drive Motors
      */
-    private DcMotor frontLeft;
-    private DcMotor frontRight;
-    private DcMotor backLeft;
-    private DcMotor backRight;
+    private DcMotorEx frontLeft;
+    private DcMotorEx frontRight;
+    private DcMotorEx backLeft;
+    private DcMotorEx backRight;
 
     /*
      * The BNO055Enhanced (gyro)
@@ -120,10 +121,10 @@ public class MecBot {
      * @param hwMap
      */
     public void init(HardwareMap hwMap) {
-        frontLeft = hwMap.get(DcMotor.class, "front_left_motor");
-        frontRight = hwMap.get(DcMotor.class, "front_right_motor");
-        backLeft = hwMap.get(DcMotor.class, "back_left_motor");
-        backRight = hwMap.get(DcMotor.class, "back_right_motor");
+        frontLeft = hwMap.get(DcMotorEx.class, "front_left_motor");
+        frontRight = hwMap.get(DcMotorEx.class, "front_right_motor");
+        backLeft = hwMap.get(DcMotorEx.class, "back_left_motor");
+        backRight = hwMap.get(DcMotorEx.class, "back_right_motor");
 
         /*
          * Either the right or the left motors need to have their directions reversed, depending upon
@@ -315,7 +316,7 @@ public class MecBot {
          * Determine small increment of robot motion in ROBOT COORDINATE SYSTEM
          */
         float dXR = 0.25f * (-sBL + sFL - sFR + sBR) * TAN_ALPHA;
-        float dYR = 0.25f * (sBL + sFL + sFR + sBR) * TAN_ALPHA;
+        float dYR = 0.25f * (sBL + sFL + sFR + sBR);
 
         /*
          * Convert this small increment of robot motion into WORLD COORDINATES

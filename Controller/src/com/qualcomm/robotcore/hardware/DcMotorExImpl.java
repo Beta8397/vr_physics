@@ -20,6 +20,10 @@ public class DcMotorExImpl extends DcMotorImpl implements DcMotorEx{
         super(motorType);
     }
 
+    public DcMotorExImpl(MotorType motorType, boolean supportsError, boolean supportsInertia){
+        super(motorType, supportsError, supportsInertia);
+    }
+
     @Override
     public void setMotorEnable() {
         throw new NotImplementedException("setMotorEnable method has not been implemented in DcMotorExImpl.");

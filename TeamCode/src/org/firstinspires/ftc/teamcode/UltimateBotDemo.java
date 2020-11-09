@@ -25,7 +25,7 @@ public class UltimateBotDemo extends LinearOpMode {
     Servo shooterTrigServo;
     DcMotor shooterMotor;
     DcMotor intakeMotor;
-    Servo grabServo;
+    DcMotor armMotor;
     Servo handServo;
 
     public void runOpMode(){
@@ -70,7 +70,9 @@ public class UltimateBotDemo extends LinearOpMode {
         intakeMotor.setPower(1);
         shooterMotor.setPower(0.8);
 
-        grabServo = hardwareMap.get(Servo.class, "arm_servo");
+        armMotor = hardwareMap.get(DcMotor.class, "arm_motor");
+        armMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+
         handServo = hardwareMap.get(Servo.class, "hand_servo");
 
 
@@ -119,10 +121,10 @@ public class UltimateBotDemo extends LinearOpMode {
 
             if (gamepad1.dpad_down && grabTimer.seconds()>0.05){
                 grabTimer.reset();
-                grabPos = (float)Math.min(1.0, grabPos + 0.05);
+                grabPos = (float)Math.min(180, grabPos + 4);
             } else if (gamepad1.dpad_up && grabTimer.seconds()>0.05){
                 grabTimer.reset();
-                grabPos = (float)Math.max(0, grabPos - 0.05);
+                grabPos = (float)Math.max(0, grabPos - 4);
             }
 
             if (gamepad1.dpad_right && handTimer.seconds()>0.05){
@@ -133,7 +135,9 @@ public class UltimateBotDemo extends LinearOpMode {
                 handPos = (float)Math.max(0, handPos - 0.05);
             }
 
-            grabServo.setPosition(grabPos);
+            armMotor.setTargetPosition( (int)(grabPos * 1120.0/360.0));
+            armMotor.setPower(1);
+
             handServo.setPosition(handPos);
 
             telemetry.addData("GP 1 Lt stick controls fwd/strafe.","");

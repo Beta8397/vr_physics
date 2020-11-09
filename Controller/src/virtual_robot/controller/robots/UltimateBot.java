@@ -1,6 +1,5 @@
 package virtual_robot.controller.robots;
 
-import com.qualcomm.hardware.bosch.BNO055IMUImpl;
 import com.qualcomm.robotcore.hardware.*;
 import com.qualcomm.robotcore.hardware.configuration.MotorType;
 import javafx.application.Platform;
@@ -57,15 +56,15 @@ public class UltimateBot extends VirtualBot {
     private final float MAX_WHEEL_X_FORCE = TOTAL_MASS * GRAVITY * FIELD_FRICTION_COEFF / (4.0f * (float)Math.sqrt(2));
 
     private final MotorType motorType = MotorType.NeverestOrbital20;
-    private DcMotorImpl[] motors = null;
-    private DcMotorImpl shooterMotor = null;
+    private DcMotorExImpl[] motors = null;
+    private DcMotorExImpl shooterMotor = null;
     private BNO055EnhancedImpl imu = null;
     private VirtualRobotController.ColorSensorImpl colorSensor = null;
     private ServoImpl shooterElevServo = null;
     private ServoImpl shooterTrigServo = null;
     private VirtualRobotController.DistanceSensorImpl[] distanceSensors = null;
-    private DcMotorImpl intakeMotor = null;
-    private ServoImpl armServo = null;
+    private DcMotorExImpl intakeMotor = null;
+    private DcMotorExImpl armMotor = null;
     private ServoImpl handServo = null;
 
     private double wheelCircumference;
@@ -112,14 +111,14 @@ public class UltimateBot extends VirtualBot {
         super.init();
         hardwareMap.setActive(true);
 
-        motors = new DcMotorImpl[]{
-                (DcMotorImpl)hardwareMap.dcMotor.get("back_left_motor"),
-                (DcMotorImpl)hardwareMap.dcMotor.get("front_left_motor"),
-                (DcMotorImpl)hardwareMap.dcMotor.get("front_right_motor"),
-                (DcMotorImpl)hardwareMap.dcMotor.get("back_right_motor")
+        motors = new DcMotorExImpl[]{
+                hardwareMap.get(DcMotorExImpl.class, "back_left_motor"),
+                hardwareMap.get(DcMotorExImpl.class,"front_left_motor"),
+                hardwareMap.get(DcMotorExImpl.class,"front_right_motor"),
+                hardwareMap.get(DcMotorExImpl.class,"back_right_motor")
         };
 
-        intakeMotor = (DcMotorImpl)hardwareMap.dcMotor.get("intake_motor");
+        intakeMotor = hardwareMap.get(DcMotorExImpl.class,"intake_motor");
 
         distanceSensors = new VirtualRobotController.DistanceSensorImpl[]{
                 hardwareMap.get(VirtualRobotController.DistanceSensorImpl.class, "front_distance"),
@@ -131,8 +130,8 @@ public class UltimateBot extends VirtualBot {
         colorSensor = (VirtualRobotController.ColorSensorImpl)hardwareMap.colorSensor.get("color_sensor");
         shooterElevServo = (ServoImpl)hardwareMap.servo.get("shooter_elev_servo");
         shooterTrigServo = (ServoImpl)hardwareMap.servo.get("shooter_trig_servo");
-        shooterMotor = (DcMotorImpl)hardwareMap.get(DcMotor.class, "shooter_motor");
-        armServo = (ServoImpl)hardwareMap.servo.get("arm_servo");
+        shooterMotor = hardwareMap.get(DcMotorExImpl.class, "shooter_motor");
+        armMotor = hardwareMap.get(DcMotorExImpl.class,"arm_motor");
         handServo = (ServoImpl)hardwareMap.servo.get("hand_servo");
         hardwareMap.setActive(false);
 
@@ -175,16 +174,16 @@ public class UltimateBot extends VirtualBot {
     protected void createHardwareMap(){
         hardwareMap = new HardwareMap();
         String[] motorNames = new String[]{"back_left_motor", "front_left_motor", "front_right_motor", "back_right_motor"};
-        for (String name: motorNames) hardwareMap.put(name, new DcMotorImpl(motorType));
-        hardwareMap.put("intake_motor", new DcMotorImpl(MotorType.Neverest40, false, false));
-        hardwareMap.put("shooter_motor", new DcMotorImpl(MotorType.Neverest40, false, false));
+        for (String name: motorNames) hardwareMap.put(name, new DcMotorExImpl(motorType));
+        hardwareMap.put("intake_motor", new DcMotorExImpl(MotorType.Neverest40, false, false));
+        hardwareMap.put("shooter_motor", new DcMotorExImpl(MotorType.Neverest40, false, false));
         String[] distNames = new String[]{"front_distance", "left_distance", "back_distance", "right_distance"};
         for (String name: distNames) hardwareMap.put(name, controller.new DistanceSensorImpl());
         hardwareMap.put("imu", new BNO055EnhancedImpl(this, 10));
         hardwareMap.put("color_sensor", controller.new ColorSensorImpl());
         hardwareMap.put("shooter_elev_servo", new ServoImpl());
         hardwareMap.put("shooter_trig_servo", new ServoImpl());
-        hardwareMap.put("arm_servo", new ServoImpl());
+        hardwareMap.put("arm_motor", new DcMotorExImpl(MotorType.Neverest40));
         hardwareMap.put("hand_servo", new ServoImpl());
     }
 
@@ -397,13 +396,21 @@ public class UltimateBot extends VirtualBot {
 
 
         /*
-         * Grabber
+         * Hand
          */
 
         double fingerPos = handServo.getInternalPosition();
-        grabberRotation = 180 * armServo.getInternalPosition();
         leftHandRotation =  180.0 - 180.0 * fingerPos;
         rightHandRotation = -180.0 + 180.0 * fingerPos;
+
+        /*
+         * Arm
+         */
+
+        armMotor.update(millis);
+        if (armMotor.getActualPosition() > 560) armMotor.setActualPosition(560);
+        else if (armMotor.getActualPosition() < -100) armMotor.setActualPosition(-100);
+        grabberRotation = armMotor.getActualPosition() * 360.0 / 1120.0;
 
         /*
          * In the handleContacts method, a wobble can be grabbed only if fingersJustClosed is true.
@@ -424,9 +431,9 @@ public class UltimateBot extends VirtualBot {
                 wobbleMotor = null;
                 grabbedWobble = null;
             } else {
-                double servoAngle = armServo.getInternalPosition() * Math.PI;
+                double motorAngle = armMotor.getActualPosition() * Math.PI / 560.0;
                 double wobbleAngle = wobbleJoint.getAngle();
-                double error = AngleUtils.normalizeRadians(servoAngle + wobbleAngle);
+                double error = AngleUtils.normalizeRadians(motorAngle + wobbleAngle);
                 wobbleMotor.setParamVel(-100*error/millis);
             }
         }
@@ -459,10 +466,10 @@ public class UltimateBot extends VirtualBot {
          */
         double cos = Math.cos(Math.toRadians(shooterElevationAngle));
         double sin = Math.sin(Math.toRadians(shooterElevationAngle));
-        DMatrix3 shooterRotation = new DMatrix3(1, 0, 0,
-                                                 0, cos, -sin,
+        DMatrix3 shooterRotation = new DMatrix3(-1, 0, 0,
+                                                 0, -cos, sin,
                                                  0, sin, cos);
-        DVector3 shooterPosition = new DVector3(4, 19, 17);
+        DVector3 shooterPosition = new DVector3(0, -19, 17);
 
         /*
          * Position and orientation of axis of rotation of shooter in world coordinate system
@@ -603,8 +610,8 @@ public class UltimateBot extends VirtualBot {
         backLeftRail.getTransforms().addAll(new Translate(-shortRailXOffset, -railYOffset, halfPltHt+pltZOffset+0.5*tetrixWidth));
         Group backRightRail = Parts.tetrixBox(shortRailLength, tetrixWidth, tetrixWidth, tetrixWidth);
         backRightRail.getTransforms().addAll(new Translate(shortRailXOffset, -railYOffset, halfPltHt+pltZOffset+0.5*tetrixWidth));
-        Group backRail = Parts.tetrixBox(longRailLength, tetrixWidth, tetrixWidth, tetrixWidth);
-        backRail.getTransforms().addAll(new Translate(0, -railYOffset, halfPltHt+pltZOffset+1.5*tetrixWidth));
+        Group backRail = Parts.tetrixBox(longRailLength, tetrixWidth, 2*tetrixWidth, tetrixWidth);
+        backRail.getTransforms().addAll(new Translate(0, -railYOffset, halfPltHt+pltZOffset+2*tetrixWidth));
 
         /*
          * Add plates and rail groups to botGroup
@@ -644,7 +651,7 @@ public class UltimateBot extends VirtualBot {
         DBox frontRailBox = OdeHelper.createBox(0.9*longRailLength, tetrixWidth, 1.8*tetrixWidth);
         DBox leftBackRailBox = OdeHelper.createBox(0.9*shortRailLength, tetrixWidth, 0.9*tetrixWidth);
         DBox rightBackRailBox = OdeHelper.createBox(0.9*shortRailLength, tetrixWidth, 0.9*tetrixWidth);
-        DBox backRailBox = OdeHelper.createBox(0.9*longRailLength, tetrixWidth, 0.9*tetrixWidth);
+        DBox backRailBox = OdeHelper.createBox(0.9*longRailLength, tetrixWidth, 1.8*tetrixWidth);
 
         DTriMeshData botBottomData = FxBodyHelper.getParametricTriMeshData(1, -1, -1, 1, 5, 5,
                 false, false, new Util3D.Param3DEqn() {
@@ -678,7 +685,7 @@ public class UltimateBot extends VirtualBot {
         fxBody.addGeom(frontRailBox, 0, railYOffset, pltZOffset+halfPltHt+2*tetrixWidth);
         fxBody.addGeom(leftBackRailBox, -shortRailXOffset, -railYOffset, pltZOffset+halfPltHt+tetrixWidth/2.0);
         fxBody.addGeom(rightBackRailBox, shortRailXOffset, -railYOffset, pltZOffset+halfPltHt+tetrixWidth/2.0);
-        fxBody.addGeom(backRailBox, 0, -railYOffset, pltZOffset+halfPltHt+1.5*tetrixWidth);
+        fxBody.addGeom(backRailBox, 0, -railYOffset, pltZOffset+halfPltHt+2*tetrixWidth);
         fxBody.addGeom(botBottomMesh, 0, 0, -halfPltHt);
 
         /*
@@ -732,7 +739,7 @@ public class UltimateBot extends VirtualBot {
         backShooterRail.setMaterial(shooterRailMaterial);
         shooterTop.setMaterial(shooterRailMaterial);
         shooterWheel.setMaterial(shooterWheelMaterial);
-        shooter.getTransforms().addAll(new Translate(4, 6, 17), shooterElevationRotate);
+        shooter.getTransforms().addAll(new Rotate(180, Rotate.Z_AXIS), new Translate(0, 6, 17), shooterElevationRotate);
         shooter.getChildren().addAll(shooterBed, leftShooterRail, rightShooterRail, backShooterRail, shooterTop, shooterWheel);
         botGroup.getChildren().add(shooter);
         shooter.updateGeomOffsets();
@@ -925,7 +932,7 @@ public class UltimateBot extends VirtualBot {
                  * wobble.
                  */
 
-                double armElev = Math.PI * armServo.getInternalPosition();
+                double armElev = Math.PI * armMotor.getActualPosition() / 560.0;
                 DVector3 armAxisBot = new DVector3(0, Math.cos(armElev), Math.sin(armElev));
                 DVector3 armAxisWorld = new DVector3();
                 fxBody.vectorToWorld(armAxisBot, armAxisWorld);
