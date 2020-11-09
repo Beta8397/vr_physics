@@ -55,11 +55,11 @@ public class ExampleAuto extends MecBotAutonomous {
         armMotor.setTargetPosition(448);
         armMotor.setPower(1);
 
-        driveSpline(50, true, spline2);
+        driveSpline(50, false, spline2);
 
 //        System.out.println("Wait Time: " + waitUntilResting(0.2f, 0.2f, 50));
 
-        turnToHeading(90, 0.5f, 4, 30);
+        turnToHeading(-90, 0.5f, 12, 90);
 
         shooterElevServo.setPosition(0.15);
         sleep(300);
