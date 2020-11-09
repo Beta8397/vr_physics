@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.mecbot;
 
+
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 
 import org.firstinspires.ftc.teamcode.util.gamepad.ButtonToggle;
@@ -7,12 +8,12 @@ import org.firstinspires.ftc.teamcode.util.gamepad.ButtonToggle;
 /**
  * Abstract class to provide TeleOp functionality for a MechBot.
  *
- * Note:  Subclasses of MecBotTeleOp must call MechBotTeleOp.setBot(...), to provide MechBotTeleOp
- * with a reference to a MecBot.
+ * Note:  Subclasses of MechBotTeleOp must call MechBotTeleOp.setup(...), to provide MechBotTeleOp
+ * with a reference to a MechBot, and do other initialization.
  *
- * It is the responsibility of the subclass to initialize the MecBot.
+ * It is the responsibility of the subclass to initialize the MechBot.
  *
- * The control loop of the subclass of MecBotTeleOp should call MechBotTeleOp.doDriveControl()
+ * The control loop of the subclass of MechBotTeleOp should call MechBotTeleOp.doDriveControl()
  * during each iteration.
  *
  */
@@ -26,19 +27,7 @@ public abstract class MecBotTeleOp extends LinearOpMode {
     private boolean fieldCentric = false;
     private float px, py, pa;
 
-    /*
-     * Set up gamepad toggles.
-     *
-     * THE FOLLOWING GAMEPAD CONTROLS ARE USED BY MECBOTTELEOP:
-     *
-     * gamepad1.dpad_up: toggle slow mode
-     * gamepad1.dpad_down: toggle quad mode
-     * gamepad1.dpad_left: toggle telemetry
-     * gamepad1.y: toggle field-centric
-     * gamepad1 left stick: robot linear power
-     * gamepad1 triggers: robot angular power
-     *
-     */
+    //Set up gamepad buttons as toggles
 
     private ButtonToggle toggleD1up = new ButtonToggle(ButtonToggle.Mode.RELEASED) {
         protected boolean getButtonState() {
@@ -65,8 +54,8 @@ public abstract class MecBotTeleOp extends LinearOpMode {
     protected static final float JOYSTICK_DEADZONE = 0.05f;
     protected static final float TRIGGER_DEADZONE = 0.05f;
 
-    protected void setBot(MecBot bot){
-        this.bot = bot;
+    protected void setup(MecBot mecBot){
+        bot = mecBot;
     }
 
     /**
@@ -77,7 +66,10 @@ public abstract class MecBotTeleOp extends LinearOpMode {
      */
     protected void doDriveControl(){
 
-        if (toggleD1up.update()) slowMode = !slowMode;
+        if (toggleD1up.update()) {
+            slowMode = !slowMode;
+
+        }
         if (toggleD1down.update()) quadMode = !quadMode;
         if (toggleD1left.update()) telemetryEnabled = !telemetryEnabled;
         if (toggleY.update()) fieldCentric = !fieldCentric;
@@ -90,7 +82,6 @@ public abstract class MecBotTeleOp extends LinearOpMode {
             float pyf = -px;
 
             float theta = bot.getHeadingRadians();
-            telemetry.addData("Heading", theta * 180 / Math.PI);
             float sinTheta = (float) Math.sin(theta);
             float cosTheta = (float) Math.cos(theta);
 
@@ -104,10 +95,11 @@ public abstract class MecBotTeleOp extends LinearOpMode {
         float rightTrigger = gamepad1.right_trigger;
         if (rightTrigger < TRIGGER_DEADZONE) rightTrigger = 0;
 
-        pa = leftTrigger - rightTrigger;
+        pa = leftTrigger > TRIGGER_DEADZONE ? leftTrigger : -rightTrigger;
 
         if (Math.abs(px) < JOYSTICK_DEADZONE) px = 0;
         if (Math.abs(py) < JOYSTICK_DEADZONE) py = 0;
+        if (Math.abs(pa) < TRIGGER_DEADZONE) pa = 0;
 
         if (quadMode){
             //This is just value squared.
@@ -122,7 +114,7 @@ public abstract class MecBotTeleOp extends LinearOpMode {
             pa /= SLOW_MODE_SCALER;
         }
 
-        bot.setDrivePower(px, py, pa);
+        bot.setDrivePower( px,  py,  pa);
 
         //This should always be set to enabled.
 
