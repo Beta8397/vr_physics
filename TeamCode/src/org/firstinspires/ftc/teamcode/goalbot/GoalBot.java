@@ -11,7 +11,7 @@ public class GoalBot extends MecBot {
 
     public static final float GRABBER_OPEN_POSITION = 0f;
     public static final float GRABBER_CLOSED_POSITION = 1f;
-    public static final float SHOOTER_POWER_NORMAL = 0.8f;
+    public static final float SHOOTER_POWER_NORMAL = 0.75f;
     public static final float SHOOTER_POWER_HIGH = 1.0f;
     public static final float KICKER_ENGAGED = 1;
     public static final float KICKER_UNENGAGED = 0;

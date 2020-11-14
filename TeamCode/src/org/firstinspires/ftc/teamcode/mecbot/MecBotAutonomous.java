@@ -2,14 +2,11 @@ package org.firstinspires.ftc.teamcode.mecbot;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.util.ElapsedTime;
+
 import org.firstinspires.ftc.robotcore.external.matrices.VectorF;
 import org.firstinspires.ftc.teamcode.util.AngleUtils;
 import org.firstinspires.ftc.teamcode.util.CubicSpline2D;
 import org.firstinspires.ftc.teamcode.util.ParametricFunction2D;
-import org.firstinspires.ftc.teamcode.util.Pose;
-
-import java.util.LinkedList;
-import java.util.List;
 
 /**
  * An abstract class that extends LinearOpMode and provides navigation methods that can be called by autonomous op modes
@@ -18,7 +15,7 @@ import java.util.List;
 public abstract class MecBotAutonomous extends LinearOpMode {
 
     public static final float STD_TURN_COEFF = 2.0f;        //Proportionate coefficient for turning
-    private final float HEADING_CORRECTION_FACTOR = 0.5f;
+    private final float HEADING_CORRECTION_FACTOR = 2.0f;
     private final float DISTANCE_CORRECTION_FACTOR = 2.0f;
     public static final float STD_MAX_TURN_SPEED = 1.0f;    //Radians per sec
 
@@ -89,26 +86,32 @@ public abstract class MecBotAutonomous extends LinearOpMode {
         float targetHeadingRadians = targetHeadingDegrees * (float) Math.PI / 180;
         float toleranceRadians = toleranceDegrees * (float) Math.PI / 180;
         float maxRadiansPerSec = maxDegreesPerSec * (float)Math.PI/180;
-        float oldHeading = bot.updateOdometry().theta;
+        float priorHeading = bot.getHeadingRadians();
         ElapsedTime et = new ElapsedTime();
         while (opModeIsActive()) {
             bot.updateOdometry();
             float currentHeading = bot.getPose().theta;
+            /*
+             * Normalized difference between target heading and current heading
+             */
             float angleDiff = (float) AngleUtils.normalizeRadians(targetHeadingRadians - currentHeading);
-            if (currentHeading == oldHeading){
-                if (et.milliseconds() >= 50){
-                    if (Math.abs(angleDiff) < toleranceRadians) break;
+            /*
+             * Only check for completion if we believe we have a new reading from gyro. Assume a new reading
+             * if: current reading is different from old one OR more than 50 ms has elapsed since the last
+             * (assumed) new reading. After the test for completion, reset the timer and update priorHeading.
+             */
+            if (currentHeading != priorHeading || et.milliseconds() > 50) {
+                float headingChange = (float) AngleUtils.normalizeRadians(currentHeading - priorHeading);
+                if (Math.abs(angleDiff) < toleranceRadians && Math.abs(headingChange) < toleranceRadians / 5) {
+                    break;
+                } else {
                     et.reset();
+                    priorHeading = currentHeading;
                 }
-            } else {
-                float headingChange = (float)AngleUtils.normalizeRadians(currentHeading - oldHeading);
-                if (Math.abs(angleDiff) < toleranceRadians && Math.abs(headingChange) < toleranceRadians / 10.0) break;
-                et.reset();
             }
-            oldHeading = currentHeading;
             float va = propCoeff * angleDiff;
-            if (Math.abs(va) > maxRadiansPerSec) {
-                va = Math.signum(va) * maxRadiansPerSec;
+            if (Math.abs(va) > maxRadiansPerSec){
+                va = (float)Math.signum(va) * maxRadiansPerSec;
             }
             bot.setDriveSpeed(0, 0, va);
         }
@@ -226,23 +229,42 @@ public abstract class MecBotAutonomous extends LinearOpMode {
         bot.updateOdometry();
     }
 
-    public float waitUntilResting(float linearTol, float angleTolDegrees, float maxLatencyMillis){
-        float angleTolRadians = (float)Math.toRadians(angleTolDegrees);
-        Pose pose = bot.updateOdometry();
-        ElapsedTime et = new ElapsedTime();
-        ElapsedTime totalWaitTime = new ElapsedTime();
-        while (opModeIsActive()){
+    protected void driveToPositionGyro(float vMax, float vMin, float targetX, float targetY, float targetThetaDegrees, float cp, float tolerance) {
+        float headingTargetRadians = targetThetaDegrees * (float)Math.PI / 180;
+
+        while (opModeIsActive()) {
             bot.updateOdometry();
-            if (et.milliseconds() < maxLatencyMillis) continue;
-            et.reset();
-            Pose newPose = bot.getPose();
-            float deltaX = newPose.x - pose.x;
-            float deltaY = newPose.y - pose.y;
-            float deltaTheta = (float)AngleUtils.normalizeRadians(newPose.theta - pose.theta);
-            if (Math.abs(deltaX) < linearTol && Math.abs(deltaY) < linearTol && Math.abs(deltaTheta) < angleTolRadians) break;
-            pose = newPose;
+
+            float xError = targetX - bot.getPose().x;
+            float yError = targetY - bot.getPose().y;
+            float thetaError = (float)AngleUtils.normalizeRadians(headingTargetRadians - bot.getPose().theta);
+
+            if(Math.hypot(xError, yError) < tolerance) {
+                break;
+            }
+
+            float sinTheta = (float)Math.sin(bot.getPose().theta);
+            float cosTheta = (float)Math.cos(bot.getPose().theta);
+
+            float xErrorRobot = xError * sinTheta - yError * cosTheta;
+            float yErrorRobot = xError * cosTheta + yError * sinTheta;
+
+            float vx = xErrorRobot * cp;
+            float vy = yErrorRobot * cp;
+            float v = (float)Math.hypot(vx, vy);
+            if(v > vMax) {
+                vx *= vMax / v;
+                vy *= vMax / v;
+            } else if(v < vMin) {
+                vx *= vMin / v;
+                vy *= vMin / v;
+            }
+            float va = HEADING_CORRECTION_FACTOR * thetaError;
+
+            bot.setDriveSpeed(vx, vy, va);
+
         }
-        return (float)totalWaitTime.milliseconds();
+        bot.setDriveSpeed(0, 0,0);
     }
 
 
