@@ -69,6 +69,8 @@ public class VirtualRobotController {
     @FXML private BorderPane borderPane;
     @FXML private GridPane cameraGrid;
     @FXML private Button btnResetField;
+    @FXML private Button btnLoadRings;
+    @FXML private Button btnLoadWobble;
 
     //JavaFx subscene and the group that will hold all of the subscene content
     private SubScene subScene;
@@ -925,9 +927,16 @@ public class VirtualRobotController {
 
     }
 
-    @FXML private void handleBtnResetFieldAction(ActionEvent event){
+    @FXML private void handleBtnSetupFieldAction(ActionEvent event){
         if (opModeStarted || opModeInitialized) return;
-        ftcField.reset();
+        if (event.getSource() == btnResetField) {
+            if (bot != null && bot instanceof UltimateBot) ((UltimateBot)bot).releaseRings();
+            ftcField.reset();
+        } else if (event.getSource() == btnLoadRings){
+            if (bot != null && bot instanceof UltimateBot) ((UltimateBot)bot).storeRings();
+        } else if (event.getSource() == btnLoadWobble){
+            if (bot != null && bot instanceof UltimateBot) ((UltimateBot)bot).loadWobble(2);
+        }
     }
 
     @FXML public void handleLightButtonAction(ActionEvent event){

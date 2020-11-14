@@ -21,7 +21,7 @@ public class UltimateBotDemo extends LinearOpMode {
     BNO055IMU imu;
     DistanceSensor frontDistance, leftDistance, rightDistance, backDistance;
     ColorSensor colorSensor;
-    Servo shooterElevServo;
+//    Servo shooterElevServo;
     Servo shooterTrigServo;
     DcMotor shooterMotor;
     DcMotor intakeMotor;
@@ -63,12 +63,12 @@ public class UltimateBotDemo extends LinearOpMode {
 
         colorSensor = hardwareMap.colorSensor.get("color_sensor");
 
-        shooterElevServo = hardwareMap.get(Servo.class, "shooter_elev_servo");
+//        shooterElevServo = hardwareMap.get(Servo.class, "shooter_elev_servo");
         shooterTrigServo = hardwareMap.get(Servo.class, "shooter_trig_servo");
         intakeMotor = hardwareMap.get(DcMotor.class, "intake_motor");
         shooterMotor = hardwareMap.get(DcMotor.class, "shooter_motor");
         intakeMotor.setPower(1);
-        shooterMotor.setPower(0.8);
+        shooterMotor.setPower(0.7);
 
         armMotor = hardwareMap.get(DcMotor.class, "arm_motor");
         armMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
@@ -116,15 +116,16 @@ public class UltimateBotDemo extends LinearOpMode {
             if (gamepad1.a) shooterTrigServo.setPosition(1);
             else shooterTrigServo.setPosition(0);
 
-            double shooterElev = 0.5 * (1 + gamepad1.right_stick_y);
-            shooterElevServo.setPosition(shooterElev);
+//            double shooterElev = 0.5 * (1 + gamepad1.right_stick_y);
+//            shooterElevServo.setPosition(shooterElev);
+//            System.out.println("ShooterElev = " + (40.0 - 40.0*shooterElev));
 
             if (gamepad1.dpad_down && grabTimer.seconds()>0.05){
                 grabTimer.reset();
-                grabPos = (float)Math.min(180, grabPos + 4);
+                grabPos = grabPos + 4;
             } else if (gamepad1.dpad_up && grabTimer.seconds()>0.05){
                 grabTimer.reset();
-                grabPos = (float)Math.max(0, grabPos - 4);
+                grabPos = grabPos - 4;
             }
 
             if (gamepad1.dpad_right && handTimer.seconds()>0.05){

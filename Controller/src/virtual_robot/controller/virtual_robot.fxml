@@ -177,7 +177,17 @@
                      </GridPane.margin></Button>
                </children>
             </GridPane>
-            <Button fx:id="btnResetField" mnemonicParsing="false" onAction="#handleBtnResetFieldAction" text="Reset Field">
+            <Button fx:id="btnResetField" mnemonicParsing="false" onAction="#handleBtnSetupFieldAction" text="Reset Field">
+               <VBox.margin>
+                  <Insets top="10.0" />
+               </VBox.margin>
+            </Button>
+            <Button fx:id="btnLoadRings" mnemonicParsing="false" onAction="#handleBtnSetupFieldAction" text="Load Rings">
+               <VBox.margin>
+                  <Insets top="10.0" />
+               </VBox.margin>
+            </Button>
+            <Button fx:id="btnLoadWobble" mnemonicParsing="false" onAction="#handleBtnSetupFieldAction" text="Load Wobble">
                <VBox.margin>
                   <Insets top="10.0" />
                </VBox.margin>

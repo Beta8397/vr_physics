@@ -60,7 +60,7 @@ public class UltimateBot extends VirtualBot {
     private DcMotorExImpl shooterMotor = null;
     private BNO055EnhancedImpl imu = null;
     private VirtualRobotController.ColorSensorImpl colorSensor = null;
-    private ServoImpl shooterElevServo = null;
+//    private ServoImpl shooterElevServo = null;
     private ServoImpl shooterTrigServo = null;
     private VirtualRobotController.DistanceSensorImpl[] distanceSensors = null;
     private DcMotorExImpl intakeMotor = null;
@@ -73,14 +73,15 @@ public class UltimateBot extends VirtualBot {
     private double wlAverage;
 
     private GroupWithDGeoms shooter;
-    private double shooterElevationAngle = 40;
+    private double shooterElevationAngle = 34;
     private Rotate shooterElevationRotate = new Rotate(shooterElevationAngle, 4, 13, 0, new Point3D(1, 0, 0));
     boolean shooterCocked = true;
 
     GroupWithDGeoms grabber;
-    private double grabberRotation = 0.0;
-    private double leftHandRotation = 180.0;
-    private double rightHandRotation = -180.0;
+    private double grabberBaseRotation = 180.0;
+    private double grabberRotation = grabberBaseRotation;
+    private double leftHandRotation = 0;
+    private double rightHandRotation = 0;
     private Rotate grabberRotate = new Rotate(grabberRotation, 0, 0, 0, Rotate.X_AXIS);
     private Rotate leftHandRotate = new Rotate(leftHandRotation, 0, 0, 0, Rotate.Z_AXIS);
     private Rotate rightHandRotate = new Rotate(rightHandRotation, 0, 0, 0, Rotate.Z_AXIS);
@@ -89,8 +90,9 @@ public class UltimateBot extends VirtualBot {
 
     private FxBody grabbedWobble = null;
     private DHingeJoint wobbleJoint = null;
+    double wobbleJointBaseOffset = 0;
     private DAMotorJoint wobbleMotor = null;
-    private boolean fingersJustClosed = false;
+    private boolean fingersJustClosed = true;
     private double priorFingerPos = 0;
 
     private double[][] tWR; //Transform from wheel motion to robot motion
@@ -128,11 +130,12 @@ public class UltimateBot extends VirtualBot {
         };
         imu = hardwareMap.get(BNO055EnhancedImpl.class, "imu");
         colorSensor = (VirtualRobotController.ColorSensorImpl)hardwareMap.colorSensor.get("color_sensor");
-        shooterElevServo = (ServoImpl)hardwareMap.servo.get("shooter_elev_servo");
+//        shooterElevServo = (ServoImpl)hardwareMap.servo.get("shooter_elev_servo");
         shooterTrigServo = (ServoImpl)hardwareMap.servo.get("shooter_trig_servo");
         shooterMotor = hardwareMap.get(DcMotorExImpl.class, "shooter_motor");
         armMotor = hardwareMap.get(DcMotorExImpl.class,"arm_motor");
         handServo = (ServoImpl)hardwareMap.servo.get("hand_servo");
+        handServo.setPosition(1);
         hardwareMap.setActive(false);
 
         wheelCircumference = Math.PI * botWidth / 4.5;
@@ -156,18 +159,7 @@ public class UltimateBot extends VirtualBot {
 
         M_ForceRobotToWheel = M_ForceWheelToRobot.inverted();
 
-        if (Config.GAME == Config.Game.ULTIMATE_GOAL) {
-            List<FxBody> ultimateGoalFieldRings = UltimateGoalField.getInstance().getRings();
-            for (int i = 4; i < 7; i++) {
-                FxBody ring = ultimateGoalFieldRings.get(i);
-                ring.getGeom("ring").disable();
-                ring.disable();
-                if (subSceneGroup.getChildren().contains(ring.getNode())) {
-                    subSceneGroup.getChildren().remove(ring.getNode());
-                }
-                storedRings.add(ring);
-            }
-        }
+        storeRings();
 
     }
 
@@ -185,6 +177,93 @@ public class UltimateBot extends VirtualBot {
         hardwareMap.put("shooter_trig_servo", new ServoImpl());
         hardwareMap.put("arm_motor", new DcMotorExImpl(MotorType.Neverest40));
         hardwareMap.put("hand_servo", new ServoImpl());
+    }
+
+    /**
+     * Store rings 4,5,6 "in the robot" (i.e., disable them and add them to the stored rings list for future shooting)
+     * This should be called only from the application thread.
+     */
+    public void storeRings(){
+        if (Config.GAME == Config.Game.ULTIMATE_GOAL) {
+            List<FxBody> ultimateGoalFieldRings = UltimateGoalField.getInstance().getRings();
+            for (int i = 4; i < 7; i++) {
+                FxBody ring = ultimateGoalFieldRings.get(i);
+                if (storedRings.contains(ring) || storedRings.size() >= 3) continue;
+                ring.getGeom("ring").disable();
+                ring.disable();
+                if (subSceneGroup.getChildren().contains(ring.getNode())) {
+                    subSceneGroup.getChildren().remove(ring.getNode());
+                }
+                storedRings.add(ring);
+            }
+        }
+    }
+
+
+    /**
+     * Remove all rings from the storedRings list, and re-enable them.
+     * This should be called only from the application thread.
+     */
+    public void releaseRings(){
+        if (Config.GAME == Config.Game.ULTIMATE_GOAL) {
+            while (storedRings.size() > 0) {
+                storedRings.get(0).getGeom("ring").enable();
+                storedRings.get(0).enable();
+                storedRings.remove(0);
+            }
+        }
+    }
+
+
+    /**
+     * Load wobble i onto the bot arm. This is to be called only from the application thread.
+     * @param i
+     */
+    public void loadWobble(int i){
+        if (Config.GAME != Config.Game.ULTIMATE_GOAL) return;
+        FxBody wobble = UltimateGoalField.getInstance().getWobble(i);
+
+        /*
+         * Wobble Rotation and translation relative to grabber
+         */
+        DMatrix3 rotWobbleRelGrabber = new DMatrix3();
+        DRotation.dRSetIdentity(rotWobbleRelGrabber);
+        DVector3 transWobbleRelGrabber = new DVector3(0, 20, -15);
+
+        /*
+         * Grabber Rotation and translation relative to bot
+         */
+        double cos = Math.cos(Math.toRadians(grabberRotation));
+        double sin = Math.sin(Math.toRadians(grabberRotation));
+        DMatrix3 rotGrabberRelBot = new DMatrix3(
+                1, 0, 0,
+                0, cos, -sin,
+                0, sin, cos
+        );
+        DVector3 transGrabberRelBot = new DVector3(-17.75, 18.75, 14.0);
+
+        /*
+         * Wobble Rotation and translation relative to bot
+         */
+        DMatrix3 rotWobbleRelBot = new DMatrix3();
+        rotWobbleRelBot.eqMul(rotGrabberRelBot, rotWobbleRelGrabber);
+        DVector3 transWobbleRelBot = new DVector3();
+        transWobbleRelBot.eqProd(rotGrabberRelBot, transWobbleRelGrabber);
+        transWobbleRelBot.add(transGrabberRelBot);
+
+        /*
+         * Wobble Rotation and position in world coordinate system
+         */
+        DMatrix3C botRot = fxBody.getRotation();
+        DMatrix3 wobbleRot = new DMatrix3();
+        wobbleRot.eqMul(botRot, rotWobbleRelBot);
+        DVector3 wobblePos = new DVector3();
+        fxBody.getRelPointPos(transWobbleRelBot, wobblePos);
+
+        wobble.setRotation(wobbleRot);
+        wobble.setPosition(wobblePos);
+
+        wobble.updateNodeDisplay();
     }
 
     public synchronized void updateSensors(){
@@ -375,7 +454,7 @@ public class UltimateBot extends VirtualBot {
          * Shooter elevation
          */
 
-        shooterElevationAngle = 40 - 40 * shooterElevServo.getInternalPosition();
+//        shooterElevationAngle = 40 - 40 * shooterElevServo.getInternalPosition();
 
         /*
          * Trigger servo.
@@ -408,9 +487,13 @@ public class UltimateBot extends VirtualBot {
          */
 
         armMotor.update(millis);
-        if (armMotor.getActualPosition() > 560) armMotor.setActualPosition(560);
-        else if (armMotor.getActualPosition() < -100) armMotor.setActualPosition(-100);
-        grabberRotation = armMotor.getActualPosition() * 360.0 / 1120.0;
+        grabberRotation = grabberBaseRotation + armMotor.getActualPosition() * 360.0 / 1120.0;
+        if (grabberRotation < -30){
+            grabberRotation = -30;
+            armMotor.setActualPosition((-30 - grabberBaseRotation) * 1120.0 / 360.0);
+        } else if (grabberRotation > 180){
+            armMotor.setActualPosition((180 - grabberBaseRotation) * 1120.0 / 360.0);
+        }
 
         /*
          * In the handleContacts method, a wobble can be grabbed only if fingersJustClosed is true.
@@ -431,9 +514,10 @@ public class UltimateBot extends VirtualBot {
                 wobbleMotor = null;
                 grabbedWobble = null;
             } else {
-                double motorAngle = armMotor.getActualPosition() * Math.PI / 560.0;
+                double motorAngle = Math.toRadians(grabberRotation);
                 double wobbleAngle = wobbleJoint.getAngle();
-                double error = AngleUtils.normalizeRadians(motorAngle + wobbleAngle);
+                double wobbleOffset = AngleUtils.normalizeRadians(motorAngle + wobbleAngle);
+                double error = AngleUtils.normalizeRadians(wobbleOffset - wobbleJointBaseOffset);
                 wobbleMotor.setParamVel(-100*error/millis);
             }
         }
@@ -854,9 +938,13 @@ public class UltimateBot extends VirtualBot {
         }
         grabbedWobble = null;
         handServo.setDirection(Servo.Direction.FORWARD);
-        handServo.setPosition(0);
-        leftHandRotation = 180;
-        rightHandRotation = -180;
+        handServo.setPosition(1);
+        leftHandRotation = 0;
+        rightHandRotation = 0;
+        priorFingerPos = 0;
+        fingersJustClosed = true;
+        grabberBaseRotation = grabberRotation;
+        armMotor.stopAndReset();
         Platform.runLater(
                 new Runnable() {
                     @Override
@@ -867,7 +955,7 @@ public class UltimateBot extends VirtualBot {
         );
     }
 
-    public void handleContacts(int numContacts, DGeom o1, DGeom o2, DContactBuffer contacts, DJointGroup contactGroup){
+    public synchronized void handleContacts(int numContacts, DGeom o1, DGeom o2, DContactBuffer contacts, DJointGroup contactGroup){
         long o1CBits = o1.getCategoryBits();
         long o2CBits = o2.getCategoryBits();
 
@@ -932,7 +1020,7 @@ public class UltimateBot extends VirtualBot {
                  * wobble.
                  */
 
-                double armElev = Math.PI * armMotor.getActualPosition() / 560.0;
+                double armElev = Math.toRadians(grabberRotation);
                 DVector3 armAxisBot = new DVector3(0, Math.cos(armElev), Math.sin(armElev));
                 DVector3 armAxisWorld = new DVector3();
                 fxBody.vectorToWorld(armAxisBot, armAxisWorld);
@@ -949,6 +1037,7 @@ public class UltimateBot extends VirtualBot {
                     DVector3 axisXWorld = new DVector3();
                     fxBody.vectorToWorld(1, 0, 0, axisXWorld);
                     wobbleJoint.setAxis(axisXWorld);
+                    wobbleJointBaseOffset = AngleUtils.normalizeRadians(Math.toRadians(grabberRotation) + wobbleJoint.getAngle());
                     wobbleMotor = OdeHelper.createAMotorJoint(controller.getWorld());
                     wobbleMotor.attach(fxBody, grabbedWobble);
                     wobbleMotor.setMode(DAMotorJoint.AMotorMode.dAMotorUser);

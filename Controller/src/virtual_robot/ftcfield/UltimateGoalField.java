@@ -11,6 +11,8 @@ import javafx.scene.transform.Translate;
 import odefx.CBits;
 import odefx.FxBody;
 import odefx.FxBodyHelper;
+import odefx.node_with_geom.BoxWithDGeom;
+import odefx.node_with_geom.CylWithDGeom;
 import odefx.node_with_geom.GroupWithDGeoms;
 import org.ode4j.math.DMatrix3;
 import org.ode4j.math.DVector3;
@@ -38,6 +40,9 @@ public class UltimateGoalField extends FtcField {
 
     FxBody[] wobbles = new FxBody[4];
 
+    FxBody[] powershots = new FxBody[3];
+    static DMass powershotMass = OdeHelper.createMass();
+
     private Random rand = new Random();
 
     public static UltimateGoalField getInstance(Group group, DWorld world, DSpace space){
@@ -61,6 +66,8 @@ public class UltimateGoalField extends FtcField {
     }
 
     public List<FxBody> getRings(){ return rings; }
+
+    public FxBody getWobble(int i) { return wobbles[i]; }
 
     @Override
     public void setup() {
@@ -132,14 +139,12 @@ public class UltimateGoalField extends FtcField {
             GroupWithDGeoms wobbleGroup = Parts.wobble(i<2? Parts.AllianceColor.BLUE : Parts.AllianceColor.RED, wobbles[i]);
             wobbles[i].setNode(wobbleGroup, false);
             wobbles[i].setMass(wobbleMass);
-            double x = 60 * (1 + i%2);
-            if (i<2) x *= -1;
-            wobbles[i].setPosition(x, -121, 3);
             subSceneGroup.getChildren().add(wobbleGroup);
             wobbles[i].setDamping(0.05, 0.05);
-            wobbles[i].updateNodeDisplay();
             wobbles[i].setCategoryBits(CBits.WOBBLES);
         }
+
+        placeWobblesOnField();
 
 
         GroupWithDGeoms redGoal = Parts.goalStand(Color.color(1, 0, 0, 0.5), space);
@@ -162,44 +167,99 @@ public class UltimateGoalField extends FtcField {
             DCylinder cyl = OdeHelper.createCylinder(6.25, 2.0);
             cyl.setData("ring");
             ring.addGeom(cyl);
-            if (i<4){
-                //Initial Rings on the field
-                ring.setPosition(92.7, -57.2, 1 + 2*i);
-                subSceneGroup.getChildren().add(ringView);
-            } else {
-                //Initial Rings on the bot
-                ring.getGeom("ring").disable();
-                ring.disable();
-            }
+            subSceneGroup.getChildren().add(ringView);
             ring.setCategoryBits(CBits.RINGS);
             ring.setCollideBits(0xFF);
             rings.add(ring);
+        }
+
+        placeRingsOnField();
+
+        BoxWithDGeom powershotRail = new BoxWithDGeom(60, 4, 4,space);
+        powershotRail.getTransforms().add(new Translate(30, HALF_FIELD_WIDTH + 2, 69));
+        powershotRail.setMaterial(new PhongMaterial(Color.SILVER));
+        powershotRail.updateGeomOffset();
+        subSceneGroup.getChildren().add(powershotRail);
+
+        powershotMass.setCylinder(1, 3, 1.25, 12.5);
+        powershotMass.setMass(100);
+
+        for (int i=0; i<3; i++){
+            powershots[i] = FxBody.newInstance(world, space);
+            powershots[i].setMass(powershotMass);
+            CylWithDGeom cyl = new CylWithDGeom(1.25, 12.5, powershots[i]);
+            cyl.setMaterial(new PhongMaterial(Color.RED));
+            cyl.getTransforms().add(new Rotate(90, Rotate.X_AXIS));
+            cyl.updateGeomOffset();
+            subSceneGroup.getChildren().add(cyl);
+            powershots[i].setNode(cyl, false);
+            DMatrix3 rotation = new DMatrix3();
+            DRotation.dRFromAxisAndAngle(rotation, 1, 0, 0, Math.toRadians(35));
+            DVector3 translation = new DVector3(11.4 + 19.1*i, HALF_FIELD_WIDTH -  6.25 * Math.sin(Math.toRadians(35)),
+                    72 +  6.25 * Math.cos(Math.toRadians(35)));
+            powershots[i].setPosition(translation);
+            powershots[i].setRotation(rotation);
+            DHingeJoint hinge = OdeHelper.createHingeJoint(world);
+            hinge.attach(powershots[i], null);
+            hinge.setAnchor(11.4+19.1*i, HALF_FIELD_WIDTH, 72);
+            hinge.setAxis(1, 0, 0);
+            hinge.setParamHiStop(0);
+            hinge.setParamLoStop(-Math.toRadians(115));
+            hinge.setParamBounce(0);
+            powershots[i].updateNodeDisplay();
+        }
+
+    }
+
+    private void resetPowershotPosition(){
+        for (int i=0; i<3; i++){
+            DMatrix3 rotation = new DMatrix3();
+            DRotation.dRFromAxisAndAngle(rotation, 1, 0, 0, Math.toRadians(35));
+            DVector3 translation = new DVector3(11.4 + 19.1*i, HALF_FIELD_WIDTH -  6.25 * Math.sin(Math.toRadians(35)),
+                    72 +  6.25 * Math.cos(Math.toRadians(35)));
+            powershots[i].setPosition(translation);
+            powershots[i].setRotation(rotation);
+            powershots[i].updateNodeDisplay();
+        }
+    }
+
+    private void placeWobblesOnField(){
+        for (int i=0; i<4; i++){
+            double x = 60 * (1 + i%2);
+            if (i<2) x *= -1;
+            wobbles[i].setPosition(x, -121, 3);
+            DMatrix3 identity = new DMatrix3();
+            DRotation.dRSetIdentity(identity);
+            wobbles[i].setRotation(identity);
+            wobbles[i].updateNodeDisplay();
+        }
+    }
+
+    private void placeRingsOnField(){
+        for (int i=0; i<7; i++){
+            if (i<4) {
+                rings.get(i).setPosition(92.7, -57.2, 1 + 2 * i);
+            } else {
+                rings.get(i).setPosition(-92.7, -57.2, 1 + 2 * (i-4));
+            }
+            DMatrix3 identity = new DMatrix3();
+            DRotation.dRSetIdentity(identity);
+            rings.get(i).setRotation(identity);
+            rings.get(i).getGeom("ring").enable();
+            rings.get(i).enable();
+            if (!subSceneGroup.getChildren().contains(rings.get(i).getNode())){
+                subSceneGroup.getChildren().add(rings.get(i).getNode());
+            }
+            rings.get(i).updateNodeDisplay();
         }
     }
 
 
     @Override
     public void reset() {
-//        for (int i=0; i<rings.size(); i++){
-//            FxBody ring = rings.get(i);
-//            if (i<4){
-//                //Initial Rings on the field
-//                ring.setPosition(92.7, -57.2, 1 + 2*i);
-//                DMatrix3 rot = new DMatrix3();
-//                DRotation.dRFromAxisAndAngle(rot, 0, 0, 1, 0);
-//                ring.setRotation(rot);
-//                if (!subSceneGroup.getChildren().contains(ring.getNode())) subSceneGroup.getChildren().add(ring.getNode());
-//                ring.getGeom("ring").enable();
-//                ring.enable();
-//            } else {
-//                //Initial Rings on the bot
-//                if (subSceneGroup.getChildren().contains(ring.getNode())) subSceneGroup.getChildren().remove(ring.getNode());
-//                ring.getGeom("ring").disable();
-//                ring.disable();
-//                ring.setPosition(0,0,0);
-//            }
-//        }
-        System.out.println("NO FIELD RESET FOR ULTIMATE GOAL: STOP AND RESTART APP.");
+        placeRingsOnField();
+        placeWobblesOnField();
+        resetPowershotPosition();
     }
 
     @Override
@@ -209,6 +269,9 @@ public class UltimateGoalField extends FtcField {
         }
         for (int i=0; i<4; i++) {
             wobbles[i].updateNodeDisplay();
+        }
+        for (int i=0; i<3; i++){
+            powershots[i].updateNodeDisplay();
         }
     }
 
@@ -243,6 +306,10 @@ public class UltimateGoalField extends FtcField {
 
     @Override
     public void preStepProcess() {
+        /*
+         * If any ring has left the playing field and is located near floor level (in z) then return it
+         * to the field via a "return chute"
+         */
         for (int i = 0; i < rings.size(); i++) {
             DVector3 ringPos = (DVector3) rings.get(i).dBodyGetPosition();
             double absX = Math.abs(ringPos.get0());
