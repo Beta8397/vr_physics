@@ -1,5 +1,6 @@
 package virtual_robot.controller.robots;
 
+import com.qualcomm.hardware.bosch.BNO055IMUImpl;
 import com.qualcomm.robotcore.hardware.*;
 import com.qualcomm.robotcore.hardware.configuration.MotorType;
 import javafx.application.Platform;
@@ -21,7 +22,6 @@ import odefx.node_with_geom.GroupWithDGeoms;
 import org.firstinspires.ftc.robotcore.external.matrices.GeneralMatrixF;
 import org.firstinspires.ftc.robotcore.external.matrices.MatrixF;
 import org.firstinspires.ftc.robotcore.external.matrices.VectorF;
-import org.firstinspires.ftc.teamcode.i2c.BNO055EnhancedImpl;
 import org.ode4j.math.DMatrix3;
 import org.ode4j.math.DMatrix3C;
 import org.ode4j.math.DVector3;
@@ -58,7 +58,7 @@ public class UltimateBot extends VirtualBot {
     private final MotorType motorType = MotorType.NeverestOrbital20;
     private DcMotorExImpl[] motors = null;
     private DcMotorExImpl shooterMotor = null;
-    private BNO055EnhancedImpl imu = null;
+    private BNO055IMUImpl imu = null;
     private VirtualRobotController.ColorSensorImpl colorSensor = null;
 //    private ServoImpl shooterElevServo = null;
     private ServoImpl shooterTrigServo = null;
@@ -128,7 +128,7 @@ public class UltimateBot extends VirtualBot {
                 hardwareMap.get(VirtualRobotController.DistanceSensorImpl.class, "back_distance"),
                 hardwareMap.get(VirtualRobotController.DistanceSensorImpl.class, "right_distance")
         };
-        imu = hardwareMap.get(BNO055EnhancedImpl.class, "imu");
+        imu = hardwareMap.get(BNO055IMUImpl.class, "imu");
         colorSensor = (VirtualRobotController.ColorSensorImpl)hardwareMap.colorSensor.get("color_sensor");
 //        shooterElevServo = (ServoImpl)hardwareMap.servo.get("shooter_elev_servo");
         shooterTrigServo = (ServoImpl)hardwareMap.servo.get("shooter_trig_servo");
@@ -171,7 +171,7 @@ public class UltimateBot extends VirtualBot {
         hardwareMap.put("shooter_motor", new DcMotorExImpl(MotorType.Neverest40, false, false));
         String[] distNames = new String[]{"front_distance", "left_distance", "back_distance", "right_distance"};
         for (String name: distNames) hardwareMap.put(name, controller.new DistanceSensorImpl());
-        hardwareMap.put("imu", new BNO055EnhancedImpl(this, 10));
+        hardwareMap.put("imu", new BNO055IMUImpl(this, 10));
         hardwareMap.put("color_sensor", controller.new ColorSensorImpl());
         hardwareMap.put("shooter_elev_servo", new ServoImpl());
         hardwareMap.put("shooter_trig_servo", new ServoImpl());
