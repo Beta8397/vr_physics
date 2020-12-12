@@ -35,7 +35,7 @@ import static org.ode4j.ode.OdeConstants.*;
  *  Team Beta 8397 specific robot configuration
  *
  */
-@BotConfig(name = "Beta Bot")
+//@BotConfig(name = "Beta Bot")
 public class BetaBot extends VirtualBot {
 
     private final float TOTAL_MASS = 15000;  //mg
